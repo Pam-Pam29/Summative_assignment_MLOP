@@ -1,0 +1,203 @@
+"""
+Model Creation and Training Module for PCOS Detection
+Handles model building, training, and saving
+"""
+
+import tensorflow as tf
+from tensorflow.keras.applications import ResNet50
+from tensorflow.keras.models import Sequential, load_model
+from tensorflow.keras.layers import (Dense, GlobalAveragePooling2D, Dropout,
+                                     BatchNormalization, Activation)
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.callbacks import (EarlyStopping, ModelCheckpoint,
+                                       ReduceLROnPlateau)
+from tensorflow.keras.regularizers import l2
+from pathlib import Path
+import json
+from datetime import datetime
+import numpy as np
+
+
+def build_model(img_height=224, img_width=224, learning_rate=1e-4):
+    """
+    Build the PCOS detection model using ResNet50 transfer learning
+
+    Args:
+        img_height: Image height
+        img_width: Image width
+        learning_rate: Learning rate for optimizer
+
+    Returns:
+        Compiled Keras model
+    """
+    # Load pre-trained ResNet50 base model
+    base_model = ResNet50(
+        weights='imagenet',
+        include_top=False,
+        input_shape=(img_height, img_width, 3)
+    )
+    base_model.trainable = False
+
+    # Build custom classification head
+    model = Sequential([
+        base_model,
+        GlobalAveragePooling2D(),
+        Dense(256, kernel_regularizer=l2(0.001)),
+        BatchNormalization(),
+        Activation('relu'),
+        Dropout(0.3),
+        Dense(128, kernel_regularizer=l2(0.001)),
+        BatchNormalization(),
+        Activation('relu'),
+        Dropout(0.2),
+        Dense(1, activation='sigmoid')
+    ])
+
+    # Compile model
+    model.compile(
+        optimizer=Adam(learning_rate=learning_rate),
+        loss='binary_crossentropy',
+        metrics=[
+            'accuracy',
+            tf.keras.metrics.Precision(name='precision'),
+            tf.keras.metrics.Recall(name='recall'),
+            tf.keras.metrics.AUC(name='auc'),
+            tf.keras.metrics.TruePositives(name='tp'),
+            tf.keras.metrics.FalsePositives(name='fp'),
+            tf.keras.metrics.TrueNegatives(name='tn'),
+            tf.keras.metrics.FalseNegatives(name='fn')
+        ]
+    )
+
+    return model
+
+
+def train_model(model, train_generator, validation_generator, 
+                epochs=20, model_save_path='models/pcos_model.h5', 
+                patience=5, verbose=1):
+    """
+    Train the model with callbacks
+
+    Args:
+        model: Keras model to train
+        train_generator: Training data generator
+        validation_generator: Validation data generator
+        epochs: Maximum number of epochs
+        model_save_path: Path to save the best model
+        patience: Early stopping patience
+        verbose: Verbosity level
+
+    Returns:
+        Training history
+    """
+    # Ensure models directory exists
+    Path(model_save_path).parent.mkdir(parents=True, exist_ok=True)
+
+    # Callbacks
+    callbacks = [
+        EarlyStopping(
+            monitor='val_loss',
+            patience=patience,
+            restore_best_weights=True,
+            verbose=verbose
+        ),
+        ModelCheckpoint(
+            filepath=model_save_path,
+            monitor='val_accuracy',
+            save_best_only=True,
+            verbose=verbose
+        ),
+        ReduceLROnPlateau(
+            monitor='val_loss',
+            factor=0.5,
+            patience=3,
+            min_lr=1e-7,
+            verbose=verbose
+        )
+    ]
+
+    # Train model
+    history = model.fit(
+        train_generator,
+        validation_data=validation_generator,
+        epochs=epochs,
+        callbacks=callbacks,
+        verbose=verbose
+    )
+
+    return history
+
+
+def save_training_history(history, model, test_metrics, save_path='models/training_history.json'):
+    """
+    Save training history and metadata
+
+    Args:
+        history: Training history object
+        model: Trained model
+        test_metrics: Dictionary of test set metrics
+        save_path: Path to save history JSON
+    """
+    total_params = model.count_params()
+    trainable_params = sum([tf.keras.backend.count_params(w) for w in model.trainable_weights])
+
+    history_dict = {
+        'accuracy': [float(x) for x in history.history['accuracy']],
+        'val_accuracy': [float(x) for x in history.history['val_accuracy']],
+        'loss': [float(x) for x in history.history['loss']],
+        'val_loss': [float(x) for x in history.history['val_loss']],
+        'precision': [float(x) for x in history.history['precision']],
+        'val_precision': [float(x) for x in history.history.get('val_precision', [])],
+        'recall': [float(x) for x in history.history['recall']],
+        'val_recall': [float(x) for x in history.history.get('val_recall', [])],
+        'auc': [float(x) for x in history.history['auc']],
+        'val_auc': [float(x) for x in history.history.get('val_auc', [])]
+    }
+
+    training_metadata = {
+        'timestamp': datetime.now().isoformat(),
+        'mode': 'training',
+        'epochs_trained': len(history.history['loss']),
+        'best_epoch': int(np.argmax(history.history['val_accuracy']) + 1) if 'val_accuracy' in history.history else 0,
+        'history': history_dict,
+        'final_metrics': test_metrics,
+        'model_config': {
+            'base_model': 'ResNet50',
+            'pretrained': 'ImageNet',
+            'input_shape': [224, 224, 3],
+            'total_params': int(total_params),
+            'trainable_params': int(trainable_params)
+        }
+    }
+
+    Path(save_path).parent.mkdir(parents=True, exist_ok=True)
+    with open(save_path, 'w') as f:
+        json.dump(training_metadata, f, indent=4)
+
+
+def load_saved_model(model_path):
+    """
+    Load a saved model
+
+    Args:
+        model_path: Path to saved model file
+
+    Returns:
+        Loaded Keras model
+    """
+    try:
+        # Try loading with tf.keras (more compatible)
+        return tf.keras.models.load_model(model_path, compile=False)
+    except Exception as e1:
+        try:
+            # Try standard load_model
+            return load_model(model_path)
+        except Exception as e2:
+            # Try with custom_objects for ResNet50
+            from tensorflow.keras.applications import ResNet50
+            return tf.keras.models.load_model(
+                model_path,
+                custom_objects={'ResNet50': ResNet50},
+                compile=False
+            )
+
