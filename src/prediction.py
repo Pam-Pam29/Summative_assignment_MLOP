@@ -121,3 +121,8 @@ def validate_image_file(file_path):
     except Exception as e:
         return False, str(e)
 
+
+
+
+
+

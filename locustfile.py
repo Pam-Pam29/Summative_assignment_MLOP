@@ -80,3 +80,8 @@ class LoadTestUser(HttpUser):
                 files = {'file': (image_path.name, f, 'image/jpeg')}
                 self.client.post("/predict", files=files, name="rapid_predict")
 
+
+
+
+
+

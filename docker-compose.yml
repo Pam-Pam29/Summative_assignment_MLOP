@@ -1,8 +1,7 @@
-version: '3.8'
-
 services:
   api:
-    build: .
+    build:
+      context: .
     container_name: pcos_api
     ports:
       - "5000:5000"
@@ -11,6 +10,9 @@ services:
       - ./data:/app/data
     environment:
       - FLASK_ENV=production
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     command: gunicorn -w 4 -b 0.0.0.0:5000 src.api:app
     restart: unless-stopped
     healthcheck:
@@ -20,7 +22,8 @@ services:
       retries: 3
 
   ui:
-    build: .
+    build:
+      context: .
     container_name: pcos_ui
     ports:
       - "8501:8501"
@@ -29,8 +32,13 @@ services:
       - ./data:/app/data
     environment:
       - API_BASE_URL=http://api:5000
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     command: streamlit run app.py --server.port=8501 --server.address=0.0.0.0
     depends_on:
       - api
     restart: unless-stopped
+
+
 

@@ -50,3 +50,41 @@ data/uploads/*
 *.egg-info/
 dist/
 build/
+
+# Helper scripts (not needed in repo)
+*.ps1
+*.bat
+*.sh
+!run_load_test.sh  # Keep load test script
+
+# Temporary/fix scripts
+fix_model_loading.py
+rebuild_model.py
+Dockerfile.alternative
+
+# AWS setup docs (keep buildspec.yml)
+AWS_BUILD_SETUP.md
+AWS_CODEBUILD_SETUP.md
+CLOUD_BUILD_INSTRUCTIONS.md
+CLOUD_DEPLOYMENT_GUIDE.md
+COLAB_*.md
+DATA_SOURCES.md
+DOCKER_INSTALL_TROUBLESHOOTING.md
+FINAL_CHECKLIST.md
+GIT_PUSH_COMMANDS.md
+INSTALL_DOCKER.md
+LOAD_TESTING*.md
+MODEL_FIX_INSTRUCTIONS.md
+NEXT_STEPS.md
+QUICK_*.md
+SETUP.md
+ASSIGNMENT_CHECKLIST.md
+
+# Large model files (if > 100MB, GitHub will reject)
+# Uncomment if models are too large
+# models/*.h5
+# models/*.keras
+# models/*.weights.h5
+
+# GitHub Actions (optional - exclude for minimal push)
+# .github/
