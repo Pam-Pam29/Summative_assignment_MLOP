@@ -256,11 +256,16 @@ def show_predict_page():
                         response = requests.post(
                             f"{API_BASE_URL}/predict",
                             files=files,
-                            timeout=30
+                            timeout=120  # Increased to 120 seconds for model loading + cold start
                         )
 
                         if response.status_code == 200:
-                            result = response.json()
+                            try:
+                                result = response.json()
+                            except ValueError as json_error:
+                                st.error(f"Invalid JSON response from API. Response text: {response.text[:200]}")
+                                st.info("This might be a timeout or the API is still loading the model. Try again in a moment.")
+                                return
                             prediction = result.get('prediction', {})
 
                             st.success("Prediction completed!")
@@ -283,11 +288,27 @@ def show_predict_page():
                             st.progress(confidence)
 
                         else:
-                            error = response.json().get('error', 'Unknown error')
-                            st.error(f"Prediction failed: {error}")
+                            try:
+                                error = response.json().get('error', 'Unknown error')
+                                st.error(f"Prediction failed: {error}")
+                            except ValueError:
+                                st.error(f"Prediction failed with status {response.status_code}")
+                                st.info(f"Response: {response.text[:200]}")
+                                if response.status_code == 504 or response.status_code == 502:
+                                    st.warning("The API might be timing out. This can happen on free tier when the service is sleeping or loading the model. Try again in 30-60 seconds.")
 
+                    except requests.exceptions.Timeout:
+                        st.error("Request timed out. The API is taking too long to respond.")
+                        st.info("This is normal for free tier services - first request after sleep takes 30-60 seconds, and model loading adds another 30-60 seconds.")
+                        st.info("Please try again - the model should be loaded now and subsequent requests will be faster.")
+                    except requests.exceptions.ConnectionError:
+                        st.error("Could not connect to API. Please check:")
+                        st.info(f"1. API URL is correct: {API_BASE_URL}")
+                        st.info("2. API service is running on Render")
+                        st.info("3. API_BASE_URL environment variable is set correctly")
                     except Exception as e:
                         st.error(f"Error: {str(e)}")
+                        st.info("Check the API logs in Render dashboard for more details.")
 
 
 def show_visualizations_page():
