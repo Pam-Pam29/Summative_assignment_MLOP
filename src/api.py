@@ -90,46 +90,46 @@ def load_model():
     try:
         # Clear any existing TensorFlow sessions to free memory
         tf.keras.backend.clear_session()
-    
-    # Try loading from different formats
-    for model_path in MODEL_PATHS:
-        try:
-            if os.path.exists(model_path) or os.path.isdir(model_path):
-                print(f"Attempting to load model from {model_path}...")
-                
-                # Try loading with compile=False first (for compatibility)
-                try:
-                    model = tf.keras.models.load_model(model_path, compile=False)
-                    # Recompile with the same metrics
-                    model.compile(
-                        optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
-                        loss='binary_crossentropy',
-                        metrics=[
-                            'accuracy',
-                            tf.keras.metrics.Precision(name='precision'),
-                            tf.keras.metrics.Recall(name='recall'),
-                            tf.keras.metrics.AUC(name='auc')
-                        ]
-                    )
-                    model_loaded_at = datetime.now().isoformat()
-                    MODEL_PATH = model_path  # Update to the working path
-                    print(f"✅ Model loaded successfully from {model_path}")
-                    return
-                except Exception as e1:
-                    print(f"  Error loading {model_path} with compile=False: {str(e1)[:100]}")
-                    # Try with compile=True
+        
+        # Try loading from different formats
+        for model_path in MODEL_PATHS:
+            try:
+                if os.path.exists(model_path) or os.path.isdir(model_path):
+                    print(f"Attempting to load model from {model_path}...")
+                    
+                    # Try loading with compile=False first (for compatibility)
                     try:
-                        model = tf.keras.models.load_model(model_path)
+                        model = tf.keras.models.load_model(model_path, compile=False)
+                        # Recompile with the same metrics
+                        model.compile(
+                            optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
+                            loss='binary_crossentropy',
+                            metrics=[
+                                'accuracy',
+                                tf.keras.metrics.Precision(name='precision'),
+                                tf.keras.metrics.Recall(name='recall'),
+                                tf.keras.metrics.AUC(name='auc')
+                            ]
+                        )
                         model_loaded_at = datetime.now().isoformat()
-                        MODEL_PATH = model_path
+                        MODEL_PATH = model_path  # Update to the working path
                         print(f"✅ Model loaded successfully from {model_path}")
                         return
-                    except Exception as e2:
-                        print(f"  Error loading {model_path}: {str(e2)[:100]}")
-                        continue
-        except Exception as e:
-            print(f"  Error checking {model_path}: {str(e)[:100]}")
-            continue
+                    except Exception as e1:
+                        print(f"  Error loading {model_path} with compile=False: {str(e1)[:100]}")
+                        # Try with compile=True
+                        try:
+                            model = tf.keras.models.load_model(model_path)
+                            model_loaded_at = datetime.now().isoformat()
+                            MODEL_PATH = model_path
+                            print(f"✅ Model loaded successfully from {model_path}")
+                            return
+                        except Exception as e2:
+                            print(f"  Error loading {model_path}: {str(e2)[:100]}")
+                            continue
+            except Exception as e:
+                print(f"  Error checking {model_path}: {str(e)[:100]}")
+                continue
     
     # If we get here, try loading weights and rebuilding architecture
     if model is None:
@@ -178,6 +178,10 @@ def load_model():
                 print(f"   - {weights_path}: ❌ not found")
         print("\n💡 Solution: Save weights only in Colab and download them.")
         print("   See COLAB_SAVE_WEIGHTS_ONLY.md for instructions.")
+    except Exception as e:
+        print(f"❌ Error loading model: {str(e)}")
+        import traceback
+        traceback.print_exc()
     finally:
         model_loading = False
     
