@@ -88,3 +88,8 @@ ASSIGNMENT_CHECKLIST.md
 
 # GitHub Actions (optional - exclude for minimal push)
 # .github/
+
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml

@@ -16,7 +16,16 @@ import tensorflow as tf
 
 # Optimize TensorFlow for low memory usage
 import os
+import gc
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Reduce logging
+
+# Disable GPU completely (we're on CPU)
+tf.config.set_visible_devices([], 'GPU')
+
+# Limit TensorFlow threads to reduce memory
+tf.config.threading.set_inter_op_parallelism_threads(1)
+tf.config.threading.set_intra_op_parallelism_threads(1)
+
 # Limit GPU memory growth (even though we're on CPU, this helps)
 gpus = tf.config.experimental.list_physical_devices('GPU')
 if gpus:
@@ -25,8 +34,12 @@ if gpus:
             tf.config.experimental.set_memory_growth(gpu, True)
     except RuntimeError as e:
         print(e)
+
 # Set TensorFlow to use less memory
 tf.config.experimental.enable_op_determinism()
+
+# Disable eager execution optimizations that use more memory
+os.environ['TF_DISABLE_MKL'] = '1'
 
 import sys
 from pathlib import Path
@@ -283,6 +296,9 @@ def predict():
         # Clean up temporary file
         if os.path.exists(filepath):
             os.remove(filepath)
+        
+        # Clear memory after prediction
+        gc.collect()
 
         return jsonify({
             'success': True,

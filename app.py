@@ -194,8 +194,18 @@ def show_home_page(api_status):
     
     with col2:
         model_info = get_model_info()
-        model_status = "Loaded" if model_info and model_info.get('model_loaded') else "Not Loaded"
-        st.metric("Model Status", model_status)
+        model_info_data = model_info if model_info else {}
+        model_loaded = model_info_data.get('model_loaded', False)
+        model_exists = api_status.get('model_file_exists', False) if api_status else False
+        
+        if model_loaded:
+            st.metric("Model Status", "✅ Loaded")
+        elif model_exists:
+            st.metric("Model Status", "⏳ Not Loaded (Lazy Loading)")
+            st.info("💡 **Model uses lazy loading** - It will automatically load on the first prediction request. This saves memory on free tier services.")
+        else:
+            st.metric("Model Status", "❌ Not Found")
+            st.warning("Model file not found. Please train the model first.")
     
     with col3:
         dataset_stats = get_dataset_stats()
@@ -256,7 +266,7 @@ def show_predict_page():
                         response = requests.post(
                             f"{API_BASE_URL}/predict",
                             files=files,
-                            timeout=120  # Increased to 120 seconds for model loading + cold start
+                            timeout=180  # Increased to 180 seconds for model loading + cold start + free tier sleep
                         )
 
                         if response.status_code == 200:
@@ -624,12 +634,27 @@ def show_status_page(api_status):
         st.metric("API Status", "Online" if api_status else "Offline")
     with col2:
         if api_status:
-            loaded_at = api_status.get('model_loaded_at', 'N/A')
-            st.metric("Model Loaded At", loaded_at)
+            model_loaded = api_status.get('model_loaded', False)
+            model_exists = api_status.get('model_file_exists', False)
+            
+            if model_loaded:
+                loaded_at = api_status.get('model_loaded_at', 'N/A')
+                st.metric("Model Status", "✅ Loaded")
+                st.caption(f"Loaded at: {loaded_at}")
+            elif model_exists:
+                st.metric("Model Status", "⏳ Not Loaded")
+                st.caption("Lazy loading - will load on first prediction")
+            else:
+                st.metric("Model Status", "❌ Not Found")
+                st.caption("Model file not found")
     with col3:
         if api_status:
             uptime = "Active" if api_status.get('model_loaded') else "Inactive"
             st.metric("Model Uptime", uptime)
+    
+    # Explain lazy loading
+    if api_status and not api_status.get('model_loaded', False) and api_status.get('model_file_exists', False):
+        st.info("💡 **Lazy Loading**: The model uses lazy loading to save memory. It will automatically load on the first prediction request (takes 30-60 seconds). This is normal behavior for free tier services.")
 
     # Model Information
     model_info = get_model_info()
