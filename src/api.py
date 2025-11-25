@@ -91,6 +91,41 @@ def load_model():
         # Clear any existing TensorFlow sessions to free memory
         tf.keras.backend.clear_session()
         
+        # IMPORTANT: Try weights first (much smaller memory footprint!)
+        # Weights-only loading uses less memory than full model
+        if model is None:
+            for weights_path in WEIGHTS_PATHS:
+                if os.path.exists(weights_path):
+                    print(f"Attempting to rebuild model from weights: {weights_path}...")
+                    try:
+                        from src.model import build_model
+                        # Rebuild the architecture (lightweight)
+                        model = build_model(img_height=224, img_width=224, learning_rate=1e-4)
+                        # Load the weights (much smaller than full model)
+                        model.load_weights(weights_path)
+                        # Compile the model
+                        model.compile(
+                            optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
+                            loss='binary_crossentropy',
+                            metrics=[
+                                'accuracy',
+                                tf.keras.metrics.Precision(name='precision'),
+                                tf.keras.metrics.Recall(name='recall'),
+                                tf.keras.metrics.AUC(name='auc')
+                            ]
+                        )
+                        model_loaded_at = datetime.now().isoformat()
+                        MODEL_PATH = weights_path
+                        print(f"✅ Model rebuilt and loaded from weights: {weights_path}")
+                        return model
+                    except Exception as e:
+                        print(f"❌ Error rebuilding from weights {weights_path}: {str(e)}")
+                        import traceback
+                        traceback.print_exc()
+                        model = None  # Reset for next attempt
+                        continue
+        
+        # If weights loading failed, try full model (uses more memory)
         # Try loading from different formats
         for model_path in MODEL_PATHS:
             try:
@@ -130,40 +165,6 @@ def load_model():
             except Exception as e:
                 print(f"  Error checking {model_path}: {str(e)[:100]}")
                 continue
-        
-        # If we get here, try loading weights and rebuilding architecture
-        if model is None:
-            # Try each weights path
-            for weights_path in WEIGHTS_PATHS:
-                if os.path.exists(weights_path):
-                    print(f"Attempting to rebuild model from weights: {weights_path}...")
-                    try:
-                        from src.model import build_model
-                        # Rebuild the architecture
-                        model = build_model(img_height=224, img_width=224, learning_rate=1e-4)
-                        # Load the weights
-                        model.load_weights(weights_path)
-                        # Compile the model
-                        model.compile(
-                            optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
-                            loss='binary_crossentropy',
-                            metrics=[
-                                'accuracy',
-                                tf.keras.metrics.Precision(name='precision'),
-                                tf.keras.metrics.Recall(name='recall'),
-                                tf.keras.metrics.AUC(name='auc')
-                            ]
-                        )
-                        model_loaded_at = datetime.now().isoformat()
-                        MODEL_PATH = weights_path
-                        print(f"✅ Model rebuilt and loaded from weights: {weights_path}")
-                        return
-                    except Exception as e:
-                        print(f"❌ Error rebuilding from weights {weights_path}: {str(e)}")
-                        import traceback
-                        traceback.print_exc()
-                        model = None  # Reset for next attempt
-                        continue
         
         # If we get here, no model loaded
         if model is None:
