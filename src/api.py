@@ -130,54 +130,54 @@ def load_model():
             except Exception as e:
                 print(f"  Error checking {model_path}: {str(e)[:100]}")
                 continue
-    
-    # If we get here, try loading weights and rebuilding architecture
-    if model is None:
-        # Try each weights path
-        for weights_path in WEIGHTS_PATHS:
-            if os.path.exists(weights_path):
-                print(f"Attempting to rebuild model from weights: {weights_path}...")
-                try:
-                    from src.model import build_model
-                    # Rebuild the architecture
-                    model = build_model(img_height=224, img_width=224, learning_rate=1e-4)
-                    # Load the weights
-                    model.load_weights(weights_path)
-                    # Compile the model
-                    model.compile(
-                        optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
-                        loss='binary_crossentropy',
-                        metrics=[
-                            'accuracy',
-                            tf.keras.metrics.Precision(name='precision'),
-                            tf.keras.metrics.Recall(name='recall'),
-                            tf.keras.metrics.AUC(name='auc')
-                        ]
-                    )
-                    model_loaded_at = datetime.now().isoformat()
-                    MODEL_PATH = weights_path
-                    print(f"✅ Model rebuilt and loaded from weights: {weights_path}")
-                    return
-                except Exception as e:
-                    print(f"❌ Error rebuilding from weights {weights_path}: {str(e)}")
-                    import traceback
-                    traceback.print_exc()
-                    model = None  # Reset for next attempt
-                    continue
-    
-    # If we get here, no model loaded
-    if model is None:
-        print("❌ Could not load model from any of the following paths:")
-        for path in MODEL_PATHS:
-            exists = os.path.exists(path) or os.path.isdir(path)
-            print(f"   - {path}: {'✅ exists' if exists else '❌ not found'}")
-        for weights_path in WEIGHTS_PATHS:
-            if os.path.exists(weights_path):
-                print(f"   - {weights_path}: ✅ exists (can rebuild from weights)")
-            else:
-                print(f"   - {weights_path}: ❌ not found")
-        print("\n💡 Solution: Save weights only in Colab and download them.")
-        print("   See COLAB_SAVE_WEIGHTS_ONLY.md for instructions.")
+        
+        # If we get here, try loading weights and rebuilding architecture
+        if model is None:
+            # Try each weights path
+            for weights_path in WEIGHTS_PATHS:
+                if os.path.exists(weights_path):
+                    print(f"Attempting to rebuild model from weights: {weights_path}...")
+                    try:
+                        from src.model import build_model
+                        # Rebuild the architecture
+                        model = build_model(img_height=224, img_width=224, learning_rate=1e-4)
+                        # Load the weights
+                        model.load_weights(weights_path)
+                        # Compile the model
+                        model.compile(
+                            optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
+                            loss='binary_crossentropy',
+                            metrics=[
+                                'accuracy',
+                                tf.keras.metrics.Precision(name='precision'),
+                                tf.keras.metrics.Recall(name='recall'),
+                                tf.keras.metrics.AUC(name='auc')
+                            ]
+                        )
+                        model_loaded_at = datetime.now().isoformat()
+                        MODEL_PATH = weights_path
+                        print(f"✅ Model rebuilt and loaded from weights: {weights_path}")
+                        return
+                    except Exception as e:
+                        print(f"❌ Error rebuilding from weights {weights_path}: {str(e)}")
+                        import traceback
+                        traceback.print_exc()
+                        model = None  # Reset for next attempt
+                        continue
+        
+        # If we get here, no model loaded
+        if model is None:
+            print("❌ Could not load model from any of the following paths:")
+            for path in MODEL_PATHS:
+                exists = os.path.exists(path) or os.path.isdir(path)
+                print(f"   - {path}: {'✅ exists' if exists else '❌ not found'}")
+            for weights_path in WEIGHTS_PATHS:
+                if os.path.exists(weights_path):
+                    print(f"   - {weights_path}: ✅ exists (can rebuild from weights)")
+                else:
+                    print(f"   - {weights_path}: ❌ not found")
+            print("\n💡 Solution: Save weights only in Colab and download them.")
+            print("   See COLAB_SAVE_WEIGHTS_ONLY.md for instructions.")
     except Exception as e:
         print(f"❌ Error loading model: {str(e)}")
         import traceback
