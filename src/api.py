@@ -64,6 +64,7 @@ Path('models').mkdir(parents=True, exist_ok=True)
 # Global variables
 model = None
 model_loaded_at = None
+model_loading = False  # Track if model is currently being loaded
 is_training = False
 training_status = {
     'status': 'idle',
@@ -73,13 +74,22 @@ training_status = {
     'completed_at': None
 }
 
-# Load model on startup (with memory optimization)
+# Lazy load model (only when needed, not at startup)
 def load_model():
-    global model, model_loaded_at, MODEL_PATH
-    model = None
+    global model, model_loaded_at, MODEL_PATH, model_loading
     
-    # Clear any existing TensorFlow sessions to free memory
-    tf.keras.backend.clear_session()
+    # If already loading, wait
+    if model_loading:
+        return None
+    
+    # If already loaded, return
+    if model is not None:
+        return model
+    
+    model_loading = True
+    try:
+        # Clear any existing TensorFlow sessions to free memory
+        tf.keras.backend.clear_session()
     
     # Try loading from different formats
     for model_path in MODEL_PATHS:
@@ -168,8 +178,13 @@ def load_model():
                 print(f"   - {weights_path}: ❌ not found")
         print("\n💡 Solution: Save weights only in Colab and download them.")
         print("   See COLAB_SAVE_WEIGHTS_ONLY.md for instructions.")
+    finally:
+        model_loading = False
+    
+    return model
 
-load_model()
+# Don't load model at startup - use lazy loading instead
+# load_model()  # Commented out to save memory at startup
 
 
 def allowed_file(filename):
@@ -179,6 +194,10 @@ def allowed_file(filename):
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
+    # Try to load model if not loaded (lazy loading)
+    if model is None:
+        load_model()
+    
     model_status = {
         'status': 'healthy',
         'model_loaded': model is not None,
@@ -198,8 +217,11 @@ def health_check():
 @app.route('/predict', methods=['POST'])
 def predict():
     """Predict endpoint for single image"""
+    # Lazy load model on first prediction request
     if model is None:
-        return jsonify({'error': 'Model not loaded'}), 500
+        load_model()
+        if model is None:
+            return jsonify({'error': 'Model not loaded. Please check server logs.'}), 500
 
     if 'file' not in request.files:
         return jsonify({'error': 'No file provided'}), 400
