@@ -197,23 +197,39 @@ def allowed_file(filename):
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    """Health check endpoint"""
-    # Try to load model if not loaded (lazy loading)
-    if model is None:
-        load_model()
+    """Health check endpoint - doesn't load model to save memory"""
+    # Check if model files exist without loading
+    model_exists = False
+    model_file_path = None
+    for model_path in MODEL_PATHS:
+        if os.path.exists(model_path) or os.path.isdir(model_path):
+            model_exists = True
+            model_file_path = model_path
+            break
+    
+    # Check weights files
+    if not model_exists:
+        for weights_path in WEIGHTS_PATHS:
+            if os.path.exists(weights_path):
+                model_exists = True
+                model_file_path = weights_path
+                break
     
     model_status = {
         'status': 'healthy',
         'model_loaded': model is not None,
         'model_loaded_at': model_loaded_at,
+        'model_file_exists': model_exists,
+        'model_file_path': model_file_path,
         'uptime': 'active'
     }
     
-    # Add error message if model not loaded
+    # Add message if model not loaded yet (lazy loading)
     if model is None:
-        model_status['error'] = 'Model not loaded. Check server logs for details.'
-        if not os.path.exists(MODEL_PATH):
-            model_status['error'] = f'Model file not found at {MODEL_PATH}. Please train the model first.'
+        if model_exists:
+            model_status['message'] = 'Model file exists but not loaded yet. Will load on first prediction request.'
+        else:
+            model_status['error'] = f'Model file not found. Please train the model first.'
     
     return jsonify(model_status)
 
