@@ -266,7 +266,7 @@ def show_predict_page():
                         response = requests.post(
                             f"{API_BASE_URL}/predict",
                             files=files,
-                            timeout=180  # Increased to 180 seconds for model loading + cold start + free tier sleep
+                            timeout=30  # Model loads at startup (MobileNetV2 is small), so predictions should be fast
                         )
 
                         if response.status_code == 200:
@@ -274,7 +274,7 @@ def show_predict_page():
                                 result = response.json()
                             except ValueError as json_error:
                                 st.error(f"Invalid JSON response from API. Response text: {response.text[:200]}")
-                                st.info("This might be a timeout or the API is still loading the model. Try again in a moment.")
+                                st.info("Request timed out. The model should be loaded at startup. Please try again or check API logs.")
                                 return
                             prediction = result.get('prediction', {})
 

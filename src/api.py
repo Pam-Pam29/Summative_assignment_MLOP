@@ -201,8 +201,18 @@ def load_model():
     
     return model
 
-# Don't load model at startup - use lazy loading instead
-# load_model()  # Commented out to save memory at startup
+# Load model at startup (MobileNetV2 is small enough - only ~13MB)
+# No need for lazy loading anymore!
+print("🚀 Loading MobileNetV2 model at startup (13MB - small enough!)...")
+try:
+    load_model()
+    if model is not None:
+        print("✅ Model loaded successfully at startup!")
+    else:
+        print("⚠️ Model not loaded - will use lazy loading as fallback")
+except Exception as e:
+    print(f"⚠️ Error loading model at startup: {str(e)}")
+    print("   Will use lazy loading as fallback")
 
 
 def allowed_file(filename):
@@ -211,7 +221,7 @@ def allowed_file(filename):
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    """Health check endpoint - doesn't load model to save memory"""
+    """Health check endpoint - model is loaded at startup (MobileNetV2 is small enough)"""
     # Check if model files exist without loading
     model_exists = False
     model_file_path = None
@@ -238,12 +248,14 @@ def health_check():
         'uptime': 'active'
     }
     
-    # Add message if model not loaded yet (lazy loading)
+    # Add message if model not loaded
     if model is None:
         if model_exists:
-            model_status['message'] = 'Model file exists but not loaded yet. Will load on first prediction request.'
+            model_status['message'] = 'Model file exists but failed to load at startup. Will attempt lazy loading on first prediction.'
         else:
             model_status['error'] = f'Model file not found. Please train the model first.'
+    else:
+        model_status['message'] = 'Model loaded successfully at startup (MobileNetV2 - 13MB)'
     
     return jsonify(model_status)
 
@@ -251,8 +263,9 @@ def health_check():
 @app.route('/predict', methods=['POST'])
 def predict():
     """Predict endpoint for single image"""
-    # Lazy load model on first prediction request
+    # Model should be loaded at startup (MobileNetV2 is small enough)
     if model is None:
+        # Fallback: try to load if somehow not loaded
         load_model()
         if model is None:
             return jsonify({'error': 'Model not loaded. Please check server logs.'}), 500
