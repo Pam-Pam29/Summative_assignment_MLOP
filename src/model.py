@@ -4,7 +4,7 @@ Handles model building, training, and saving
 """
 
 import tensorflow as tf
-from tensorflow.keras.applications import ResNet50
+from tensorflow.keras.applications import MobileNetV2
 from tensorflow.keras.models import Sequential, load_model
 from tensorflow.keras.layers import (Dense, GlobalAveragePooling2D, Dropout,
                                      BatchNormalization, Activation)
@@ -20,7 +20,9 @@ import numpy as np
 
 def build_model(img_height=224, img_width=224, learning_rate=1e-4):
     """
-    Build the PCOS detection model using ResNet50 transfer learning
+    Build the PCOS detection model using MobileNetV2 transfer learning
+    MobileNetV2 is much lighter than ResNet50 (~3.4M params vs ~25M)
+    Perfect for deployment on resource-constrained environments
 
     Args:
         img_height: Image height
@@ -30,11 +32,12 @@ def build_model(img_height=224, img_width=224, learning_rate=1e-4):
     Returns:
         Compiled Keras model
     """
-    # Load pre-trained ResNet50 base model
-    base_model = ResNet50(
+    # Load pre-trained MobileNetV2 base model (much lighter than ResNet50!)
+    base_model = MobileNetV2(
         weights='imagenet',
         include_top=False,
-        input_shape=(img_height, img_width, 3)
+        input_shape=(img_height, img_width, 3),
+        alpha=1.0  # Width multiplier (1.0 = full width, smaller = less params)
     )
     base_model.trainable = False
 
@@ -162,7 +165,7 @@ def save_training_history(history, model, test_metrics, save_path='models/traini
         'history': history_dict,
         'final_metrics': test_metrics,
         'model_config': {
-            'base_model': 'ResNet50',
+            'base_model': 'MobileNetV2',
             'pretrained': 'ImageNet',
             'input_shape': [224, 224, 3],
             'total_params': int(total_params),
