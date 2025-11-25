@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: pcos-api
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn src.api:app --bind 0.0.0.0:$PORT
+    envVars:
+      - key: FLASK_ENV
+        value: production
+    healthCheckPath: /health
+
+  - type: web
+    name: pcos-ui
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run app.py --server.port=$PORT --server.address=0.0.0.0 --server.headless=true
+    envVars:
+      - key: API_BASE_URL
+        value: https://pcos-api.onrender.com  # Update this after API is deployed with actual URL
+      - key: PORT
+        value: 8501
+

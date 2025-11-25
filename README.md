@@ -273,9 +273,52 @@ Record latency and response times for each configuration.
 
 ## ☁️ Deployment
 
-### Cloud Platform Deployment
+### Recommended: Render (Easiest & Free Public URLs)
 
-This application can be deployed on various cloud platforms:
+**Render is recommended** because it provides free public URLs, which meets the assignment requirements for "Excellent" grade.
+
+#### Quick Deploy to Render
+
+1. **Push code to GitHub** (required for Render):
+   ```bash
+   git add .
+   git commit -m "Ready for deployment"
+   git push origin main
+   ```
+
+2. **Sign up at Render**: https://render.com (free account)
+
+3. **Deploy API Service**:
+   - Go to Render Dashboard → "New +" → "Web Service"
+   - Connect your GitHub repository
+   - Configure:
+     - **Name**: `pcos-api`
+     - **Build Command**: `pip install -r requirements.txt`
+     - **Start Command**: `gunicorn src.api:app --bind 0.0.0.0:$PORT`
+     - **Environment Variable**: `FLASK_ENV=production`
+   - Click "Create Web Service"
+   - Copy the API URL (e.g., `https://pcos-api.onrender.com`)
+
+4. **Deploy UI Service**:
+   - Go to Render Dashboard → "New +" → "Web Service"
+   - Connect same GitHub repository
+   - Configure:
+     - **Name**: `pcos-ui`
+     - **Build Command**: `pip install -r requirements.txt`
+     - **Start Command**: `streamlit run app.py --server.port=$PORT --server.address=0.0.0.0 --server.headless=true`
+     - **Environment Variable**: `API_BASE_URL=https://pcos-api.onrender.com` (use your actual API URL)
+   - Click "Create Web Service"
+   - Copy the UI URL (e.g., `https://pcos-ui.onrender.com`)
+
+**Detailed Guide**: See [RENDER_DEPLOYMENT_GUIDE.md](RENDER_DEPLOYMENT_GUIDE.md) for step-by-step instructions.
+
+**Deployment URLs**: 
+- **API**: [Add your Render API URL here after deployment]
+- **UI**: [Add your Render UI URL here after deployment]
+
+**Note**: Free tier services may take 30 seconds to wake up after inactivity (cold start).
+
+### Alternative: Other Cloud Platforms
 
 #### AWS
 - Use ECS (Elastic Container Service) with Fargate
@@ -299,9 +342,7 @@ heroku container:push web
 heroku container:release web
 ```
 
-**Deployment URL**: [Add your deployed application URL here after deployment]
-
-**To deploy:**
+**To deploy to Heroku:**
 1. Install Heroku CLI: https://devcenter.heroku.com/articles/heroku-cli
 2. Login: `heroku login`
 3. Create app: `heroku create pcos-detection-mlops`
