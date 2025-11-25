@@ -14,6 +14,20 @@ import threading
 from werkzeug.utils import secure_filename
 import tensorflow as tf
 
+# Optimize TensorFlow for low memory usage
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Reduce logging
+# Limit GPU memory growth (even though we're on CPU, this helps)
+gpus = tf.config.experimental.list_physical_devices('GPU')
+if gpus:
+    try:
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+    except RuntimeError as e:
+        print(e)
+# Set TensorFlow to use less memory
+tf.config.experimental.enable_op_determinism()
+
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
@@ -59,10 +73,13 @@ training_status = {
     'completed_at': None
 }
 
-# Load model on startup
+# Load model on startup (with memory optimization)
 def load_model():
     global model, model_loaded_at, MODEL_PATH
     model = None
+    
+    # Clear any existing TensorFlow sessions to free memory
+    tf.keras.backend.clear_session()
     
     # Try loading from different formats
     for model_path in MODEL_PATHS:
