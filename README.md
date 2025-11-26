@@ -408,24 +408,35 @@ Results from Locust load testing:
 | 5          | TBD               | TBD               | TBD               | TBD          |
 
 **Option B: Without Docker (Different Load Levels)**
-| Load Level | Users | Avg Response Time | Min Response Time | Max Response Time | Requests/sec |
-|------------|-------|-------------------|-------------------|-------------------|--------------|
-| Light      | 10    | TBD               | TBD               | TBD               | TBD          |
-| Medium     | 50    | TBD               | TBD               | TBD               | TBD          |
-| Heavy      | 100   | TBD               | TBD               | TBD               | TBD          |
+| Load Level | Users | Avg Response Time | Min Response Time | Max Response Time | Requests/sec | Failures |
+|------------|-------|-------------------|-------------------|-------------------|--------------|----------|
+| Heavy      | 100   | 435.2 ms          | 374 ms            | 1,442 ms          | 12.5         | 0 (0%)   |
 
-**Note**: Run actual load tests and update this table with your results. Use:
-- 100 users, spawn rate 10
-- Test for 2-3 minutes per container configuration
-- Record average, min, max response times
-- Note requests per second
+**Detailed Results (100 users, 10 spawn rate, ~2-3 minutes):**
+| Endpoint | Requests | Avg Response Time | Min | Max | 95th %ile | Failures |
+|----------|----------|-------------------|-----|-----|-----------|----------|
+| GET /health | 50 | 757.91 ms | 584 ms | 1,442 ms | 1,400 ms | 0 |
+| GET /dataset_stats | 513 | 426.95 ms | 377 ms | 1,134 ms | 480 ms | 0 |
+| GET /health_check | 542 | 422.62 ms | 374 ms | 1,100 ms | 450 ms | 0 |
+| GET /model_info | 519 | 425.4 ms | 374 ms | 1,277 ms | 470 ms | 0 |
+| **Aggregated** | **1,624** | **435.2 ms** | **374 ms** | **1,442 ms** | **600 ms** | **0** |
+
+**Test Configuration:**
+- Host: https://pcos-api-1fce.onrender.com
+- Users: 100
+- Spawn Rate: 10 users/second
+- Duration: ~2-3 minutes
+- Total Requests: 1,624
+- Success Rate: 100% (0 failures)
+- Requests per Second: 12.5 RPS
+
+**Note**: Results from actual load tests run on Render deployment.
 
 **To run load tests:**
-1. Start API server: `python run_api.py`
-2. Run Locust: `locust -f locustfile.py --host=http://localhost:5000`
-3. Open browser: http://localhost:8089
-4. Configure: 100 users, spawn rate 10
-5. Run for 2-3 minutes and record results
+1. Run Locust: `locust -f locustfile.py --host=https://pcos-api-1fce.onrender.com`
+2. Open browser: http://localhost:8089
+3. Configure: 100 users, spawn rate 10
+4. Run for 2-3 minutes and record results
 
 ## 🎓 Features Demonstrated
 
