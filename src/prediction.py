@@ -41,7 +41,9 @@ def predict_single_image(model, img_path, class_names=None, threshold=0.5):
         Dictionary with prediction results
     """
     if class_names is None:
-        class_names = ['Not Infected', 'PCOS Infected']
+        # Match notebook: class_indices = {'infected': 0, 'noninfected': 1}
+        # So: 0 = Infected, 1 = Non-infected
+        class_names = ['Infected', 'Non-infected']
 
     # Preprocess image
     img_array = preprocess_image(img_path)
@@ -49,10 +51,12 @@ def predict_single_image(model, img_path, class_names=None, threshold=0.5):
     # Get prediction
     prediction_prob = model.predict(img_array, verbose=0)[0][0]
 
-    # Determine class
+    # Determine class based on notebook logic:
+    # prediction > 0.5 → class_names[1] (Non-infected)
+    # prediction <= 0.5 → class_names[0] (Infected)
     predicted_class = 1 if prediction_prob > threshold else 0
 
-    # Calculate confidence
+    # Calculate confidence (higher value = more confident)
     confidence = prediction_prob if predicted_class == 1 else 1 - prediction_prob
 
     result = {
@@ -120,6 +124,9 @@ def validate_image_file(file_path):
         return True, None
     except Exception as e:
         return False, str(e)
+
+
+
 
 
 

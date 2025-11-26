@@ -2,10 +2,7 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Note: DNS configuration in docker-compose.yml handles runtime
-# For build-time, we rely on Docker Desktop's network settings
 
-# Install system dependencies with retry logic and timeout
 RUN apt-get update --fix-missing || apt-get update --fix-missing && \
     apt-get install -y --no-install-recommends \
     gcc \
@@ -14,7 +11,7 @@ RUN apt-get update --fix-missing || apt-get update --fix-missing && \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-# Copy requirements
+
 COPY requirements.txt .
 
 # Install Python dependencies with retry logic

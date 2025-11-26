@@ -19,8 +19,8 @@ A complete Machine Learning Operations (MLOPs) pipeline for Polycystic Ovary Syn
 ## 🎯 Project Overview
 
 This project implements an end-to-end MLOPs pipeline for PCOS detection from ultrasound images using:
-- **Model**: ResNet50 transfer learning for binary classification
-- **Dataset**: PCOS Detection using Ultrasound Images from Kaggle
+- **Model**: MobileNetV2 transfer learning for binary classification (lightweight, ~3.4M parameters)
+- **Dataset**: PCOS-XAI Ultrasound Dataset from Kaggle
 - **Framework**: TensorFlow/Keras
 - **API**: Flask REST API
 - **UI**: Streamlit web application
@@ -52,8 +52,8 @@ Summative_assignment_MLOP/
 │
 ├── README.md
 │
-├── notebook/
-│   └── PCOS_Detection_MLOP.ipynb    # Jupyter notebook with model development
+├── Notebook/
+│   └── Victoria_Fakunle__PCOS_Assignment_MLOPs.ipynb    # Jupyter notebook with model development
 │
 ├── src/
 │   ├── preprocessing.py              # Data preprocessing functions
@@ -113,7 +113,7 @@ The dataset will be automatically downloaded when running the notebook. Alternat
 
 ### 4. Train the Model
 
-Run the Jupyter notebook `notebook/PCOS_Detection_MLOP.ipynb` to train the initial model. The trained model will be saved to `models/pcos_model.h5`.
+Run the Jupyter notebook `Notebook/Victoria_Fakunle__PCOS_Assignment_MLOPs.ipynb` to train the initial model. The trained model will be saved to `models/pcos_model.h5` (or `models/pcos_model.keras`).
 
 ## 🚀 Usage
 

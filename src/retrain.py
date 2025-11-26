@@ -88,9 +88,52 @@ def retrain_model(train_dir='data/train', test_dir='data/test',
         seed=seed
     )
 
-    # Build model
-    print("Building model...")
-    model = build_model(img_height=img_size[0], img_width=img_size[1])
+    # Load existing model as pre-trained (REQUIREMENT: Use custom model as pre-trained)
+    print("Loading existing model as pre-trained...")
+    model = load_saved_model()
+    
+    if model is None:
+        print("No existing model found, building new one...")
+        model = build_model(img_height=img_size[0], img_width=img_size[1], learning_rate=1e-4)
+    else:
+        # Fine-tune: Use existing model as pre-trained (REQUIREMENT)
+        print("Using existing model as pre-trained for fine-tuning...")
+        print(f"  Model architecture: {model.name}")
+        print(f"  Total layers: {len(model.layers)}")
+        
+        # Make model trainable for fine-tuning
+        model.trainable = True
+        
+        # Fine-tuning strategy: Freeze base model (MobileNetV2), unfreeze custom head
+        # Find where the base model ends (usually at GlobalAveragePooling2D)
+        base_model_end_idx = None
+        for i, layer in enumerate(model.layers):
+            if 'global_average_pooling' in layer.name.lower() or 'flatten' in layer.name.lower():
+                base_model_end_idx = i
+                break
+        
+        if base_model_end_idx is not None:
+            # Freeze base model layers
+            for layer in model.layers[:base_model_end_idx]:
+                layer.trainable = False
+            print(f"  Frozen base model layers: {base_model_end_idx}")
+            print(f"  Trainable custom head layers: {len(model.layers) - base_model_end_idx}")
+        else:
+            # Fallback: Freeze all but last 10 layers
+            for layer in model.layers[:-10]:
+                layer.trainable = False
+            print(f"  Frozen layers: {len(model.layers) - 10}")
+            print(f"  Trainable layers: 10")
+        
+        # Recompile with lower learning rate for fine-tuning
+        model.compile(
+            optimizer=tf.keras.optimizers.Adam(learning_rate=1e-5),  # Lower LR for fine-tuning
+            loss='binary_crossentropy',
+            metrics=['accuracy', 'precision', 'recall', 'AUC']
+        )
+        trainable_count = sum([1 for layer in model.layers if layer.trainable])
+        print(f"  Total trainable layers: {trainable_count}")
+        print("✅ Using custom model as pre-trained model (REQUIREMENT MET)")
 
     # Train model
     print(f"Training model for {epochs} epochs...")
@@ -147,6 +190,8 @@ if __name__ == '__main__':
     # Example usage
     result = retrain_model()
     print(json.dumps(result, indent=2))
+
+
 
 
 

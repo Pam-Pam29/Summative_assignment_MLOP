@@ -41,18 +41,20 @@ def build_model(img_height=224, img_width=224, learning_rate=1e-4):
     )
     base_model.trainable = False
 
-    # Build custom classification head
+    # Build custom classification head with stronger regularization to prevent overfitting
+    # Reduced capacity + higher dropout + stronger L2 regularization
     model = Sequential([
         base_model,
         GlobalAveragePooling2D(),
-        Dense(256, kernel_regularizer=l2(0.001)),
+        Dropout(0.5),  # Add dropout after pooling
+        Dense(128, kernel_regularizer=l2(0.01)),  # Increased L2 from 0.001 to 0.01
         BatchNormalization(),
         Activation('relu'),
-        Dropout(0.3),
-        Dense(128, kernel_regularizer=l2(0.001)),
+        Dropout(0.5),  # Increased from 0.3 to 0.5
+        Dense(64, kernel_regularizer=l2(0.01)),  # Reduced from 128 to 64, increased L2
         BatchNormalization(),
         Activation('relu'),
-        Dropout(0.2),
+        Dropout(0.4),  # Increased from 0.2 to 0.4
         Dense(1, activation='sigmoid')
     ])
 
@@ -178,29 +180,55 @@ def save_training_history(history, model, test_metrics, save_path='models/traini
         json.dump(training_metadata, f, indent=4)
 
 
-def load_saved_model(model_path):
+def load_saved_model(model_path=None):
     """
-    Load a saved model
+    Load a saved model (supports multiple formats and paths)
 
     Args:
-        model_path: Path to saved model file
+        model_path: Path to saved model file (optional, will try multiple paths if None)
 
     Returns:
-        Loaded Keras model
+        Loaded Keras model or None if not found
     """
-    try:
-        # Try loading with tf.keras (more compatible)
-        return tf.keras.models.load_model(model_path, compile=False)
-    except Exception as e1:
+    # Try multiple model paths if not specified
+    if model_path is None:
+        model_paths = [
+            'models/pcos_model.keras',
+            'models/pcos_model.h5',
+            'models/pcos_model'
+        ]
+    else:
+        model_paths = [model_path]
+    
+    for path in model_paths:
         try:
-            # Try standard load_model
-            return load_model(model_path)
-        except Exception as e2:
-            # Try with custom_objects for ResNet50
-            from tensorflow.keras.applications import ResNet50
-            return tf.keras.models.load_model(
-                model_path,
-                custom_objects={'ResNet50': ResNet50},
-                compile=False
-            )
+            if not Path(path).exists() and not Path(path).is_dir():
+                continue
+            
+            # Try loading with tf.keras (more compatible)
+            model = tf.keras.models.load_model(path, compile=False)
+            print(f"✅ Model loaded from {path}")
+            return model
+        except Exception as e1:
+            try:
+                # Try standard load_model
+                model = load_model(path)
+                print(f"✅ Model loaded from {path}")
+                return model
+            except Exception as e2:
+                # Try with custom_objects for MobileNetV2
+                try:
+                    from tensorflow.keras.applications import MobileNetV2
+                    model = tf.keras.models.load_model(
+                        path,
+                        custom_objects={'MobileNetV2': MobileNetV2},
+                        compile=False
+                    )
+                    print(f"✅ Model loaded from {path} (with MobileNetV2 custom_objects)")
+                    return model
+                except Exception as e3:
+                    continue
+    
+    print("❌ Could not load model from any path")
+    return None
 

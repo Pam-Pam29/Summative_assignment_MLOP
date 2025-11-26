@@ -11,6 +11,8 @@ ENV/
 
 # Jupyter Notebook
 .ipynb_checkpoints
+Notebook/*.ipynb
+Notebook/sc.py
 
 # IDE
 .vscode/
@@ -22,9 +24,10 @@ ENV/
 .DS_Store
 Thumbs.db
 
-# Documentation (keep only README.md)
+# Documentation (keep only essential docs)
 *.md
 !README.md
+!TESTING_GUIDE.md
 
 # Temporary files
 *.log
@@ -61,6 +64,41 @@ build/
 fix_model_loading.py
 rebuild_model.py
 Dockerfile.alternative
+
+# Backup and temporary files
+app_old.py
+app_new.py
+*_old.py
+*_new.py
+data_backup_*/
+
+# Helper scripts (not needed in final repo)
+create_training_history*.py
+organize_existing_dataset.py
+download_kaggle_dataset.py
+test_prediction.py
+
+# Copy-paste helper files
+COPY_PASTE_*.txt
+GET_VALUES_FROM_NOTEBOOK.txt
+TRAINING_HISTORY_TEMPLATE.json
+
+# Documentation guides (keep only README.md and TESTING_GUIDE.md)
+HOW_TO_*.md
+CREATE_*.md
+QUICK_*.md
+VERIFY_*.md
+DOWNLOAD_*.md
+NOTEBOOK_*.md
+APP_*.md
+FIXES_*.md
+
+# Original dataset folder (too large, already organized in data/)
+PCOS/
+
+# Data uploads (user uploads, not needed in repo)
+data/uploads/*
+!data/uploads/.gitkeep
 
 # AWS setup docs (keep buildspec.yml)
 AWS_BUILD_SETUP.md

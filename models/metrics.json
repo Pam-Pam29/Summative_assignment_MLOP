@@ -1,0 +1,12 @@
+{
+    "test_accuracy": 0.9749681949615479,
+    "test_loss": 0.2640119194984436,
+    "test_precision": 0.9468185901641846,
+    "test_recall": 0.996999979019165,
+    "test_auc": 0.997256875038147,
+    "test_f1": 0.9711949825286865,
+    "roc_auc": 0.9972365512159174,
+    "timestamp": "2025-11-26T20:04:31.746184",
+    "model_architecture": "MobileNetV2",
+    "input_shape": [224, 224, 3]
+}

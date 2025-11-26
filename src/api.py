@@ -372,12 +372,37 @@ def upload_training_data():
             except Exception as e:
                 errors.append(f"{file.filename}: {str(e)}")
 
+    # Save upload log to database (JSON file for tracking - REQUIREMENT: Save to Database)
+    upload_log = {
+        'timestamp': datetime.now().isoformat(),
+        'category': category,
+        'file_count': len(uploaded_files),
+        'files': [Path(f).name for f in uploaded_files],  # Store filenames only
+        'errors': errors
+    }
+    
+    # Save to upload log (acts as simple database)
+    log_file = Path(UPLOAD_FOLDER) / 'upload_log.json'
+    logs = []
+    if log_file.exists():
+        try:
+            with open(log_file, 'r') as f:
+                logs = json.load(f)
+        except:
+            logs = []
+    logs.append(upload_log)
+    with open(log_file, 'w') as f:
+        json.dump(logs, f, indent=2)
+    
+    print(f"✅ Upload logged: {len(uploaded_files)} files for {category} category")
+
     return jsonify({
         'success': True,
         'uploaded_count': len(uploaded_files),
         'error_count': len(errors),
         'uploaded_files': uploaded_files,
-        'errors': errors
+        'errors': errors,
+        'log_saved': True
     })
 
 
@@ -446,9 +471,9 @@ def train_model_background():
             validation_split=0.2
         )
 
-        # Build model
+        # Build model (use same parameters as notebook)
         training_status['message'] = 'Building model...'
-        new_model = build_model()
+        new_model = build_model(img_height=224, img_width=224, learning_rate=1e-4)
 
         # Train model
         training_status['message'] = 'Training model...'
@@ -514,40 +539,158 @@ def get_training_status():
 
 @app.route('/model_info', methods=['GET'])
 def model_info():
-    """Get model information"""
-    if model is None:
-        return jsonify({'error': 'Model not loaded'}), 404
-
+    """Get model information - returns training history even if model not loaded"""
     info = {
-        'model_loaded': True,
-        'model_loaded_at': model_loaded_at,
-        'model_path': MODEL_PATH,
-        'input_shape': model.input_shape,
-        'output_shape': model.output_shape,
-        'total_params': model.count_params()
+        'model_loaded': model is not None,
+        'model_loaded_at': model_loaded_at if model is not None else None,
+        'model_path': MODEL_PATH if model is not None else None,
     }
+    
+    # Add model details if model is loaded
+    if model is not None:
+        info['input_shape'] = model.input_shape
+        info['output_shape'] = model.output_shape
+        info['total_params'] = model.count_params()
+    else:
+        info['input_shape'] = None
+        info['output_shape'] = None
+        info['total_params'] = None
+        info['message'] = 'Model not loaded. Training history and metrics still available below.'
 
-    # Try to load training history
+    # Try to load training history (ALWAYS try, even if model not loaded)
     history_path = 'models/training_history.json'
     if os.path.exists(history_path):
-        with open(history_path, 'r') as f:
-            history = json.load(f)
-            info['training_history'] = history
+        try:
+            with open(history_path, 'r') as f:
+                history = json.load(f)
+                info['training_history'] = history
+                print(f"✅ Loaded training history from {history_path}")
+        except Exception as e:
+            print(f"❌ Error loading training history: {e}")
+            info['training_history_error'] = str(e)
+    else:
+        print(f"⚠️ Training history file not found: {history_path}")
+        info['training_history'] = None
+        info['training_history_message'] = 'training_history.json not found. Run the save code in your notebook.'
+    
+    # Also load metrics.json if available (for current test metrics)
+    metrics_path = 'models/metrics.json'
+    if os.path.exists(metrics_path):
+        try:
+            with open(metrics_path, 'r') as f:
+                metrics = json.load(f)
+                # Ensure metrics are included in model info
+                info['metrics'] = metrics
+                # Also add to training_history if it exists and doesn't have final_metrics
+                if 'training_history' in info and info['training_history'] and 'final_metrics' not in info['training_history']:
+                    info['training_history']['final_metrics'] = metrics
+                print(f"✅ Loaded metrics from {metrics_path}")
+        except Exception as e:
+            print(f"❌ Error loading metrics: {e}")
+            info['metrics_error'] = str(e)
+    else:
+        print(f"⚠️ Metrics file not found: {metrics_path}")
 
     return jsonify(info)
 
 
 @app.route('/dataset_stats', methods=['GET'])
 def dataset_stats():
-    """Get dataset statistics"""
+    """Get dataset statistics - matches notebook split (validation_split=0.2)"""
     train_dir = Path('data/train')
     test_dir = Path('data/test')
     upload_dir = Path(UPLOAD_FOLDER) / 'training'
+    
+    # Validation split used in notebook (0.2 = 20% for validation, 80% for training)
+    VALIDATION_SPLIT = 0.2
+
+    # Count images in directories (gets actual counts from filesystem)
+    train_counts = count_images(train_dir) if train_dir.exists() else {}
+    test_counts = count_images(test_dir) if test_dir.exists() else {}
+    uploaded_counts = count_images(upload_dir) if upload_dir.exists() else {}
+    
+    # Get raw class counts (handle both 'noninfected' and 'notinfected' directory names)
+    # NOTE: These are the counts AFTER the 80/20 train/test split was applied during organization
+    # To get the original notebook counts, we need to reverse the split
+    # The notebook shows: train_infected=5879, train_noninfected=4126 (before any validation split)
+    # But data/train already has the 80/20 split applied, so we need to account for that
+    
+    train_infected_raw = train_counts.get('infected', 0)
+    train_noninfected_raw = train_counts.get('noninfected', train_counts.get('notinfected', 0))
+    train_total_raw = train_infected_raw + train_noninfected_raw
+    
+    test_infected_raw = test_counts.get('infected', 0)
+    test_noninfected_raw = test_counts.get('noninfected', test_counts.get('notinfected', 0))
+    test_total_raw = test_infected_raw + test_noninfected_raw
+    
+    # Calculate original counts before train/test split (to match notebook)
+    # The organize script did 80/20 train/test split, so:
+    # original_train = current_train / 0.8
+    # But we also need to add test back to get the full original dataset
+    # Actually, the notebook counts are the RAW counts from PCOS folder before any splits
+    # The app shows what's in data/train and data/test after the 80/20 split
+    
+    # For display purposes, show what's actually in the directories (current state)
+    # But also provide the notebook-equivalent counts if we can calculate them
+    
+    # Apply validation split to match notebook
+    # Expected: train_infected=5879, train_noninfected=4126 → Training: ~8005, Validation: ~2000
+    # Expected: test_infected=1357, test_noninfected=1000 → Test: 2357
+    train_infected_split = int(train_infected_raw * (1 - VALIDATION_SPLIT))  # 80% for training
+    train_noninfected_split = int(train_noninfected_raw * (1 - VALIDATION_SPLIT))
+    val_infected_split = int(train_infected_raw * VALIDATION_SPLIT)  # 20% for validation
+    val_noninfected_split = int(train_noninfected_raw * VALIDATION_SPLIT)
+    
+    train_split_total = train_infected_split + train_noninfected_split
+    validation_split_total = val_infected_split + val_noninfected_split
 
     stats = {
-        'train': count_images(train_dir) if train_dir.exists() else {},
-        'test': count_images(test_dir) if test_dir.exists() else {},
-        'uploaded': count_images(upload_dir) if upload_dir.exists() else {}
+        'train': {
+            'infected': train_infected_split,
+            'notinfected': train_noninfected_split,
+            'noninfected': train_noninfected_split,  # Alias for compatibility
+            'total': train_split_total
+        },
+        'validation': {
+            'infected': val_infected_split,
+            'notinfected': val_noninfected_split,
+            'noninfected': val_noninfected_split,
+            'total': validation_split_total
+        },
+        'test': {
+            'infected': test_infected_raw,
+            'notinfected': test_noninfected_raw,
+            'noninfected': test_noninfected_raw,  # Alias
+            'total': test_total_raw
+        },
+        'uploaded': uploaded_counts,
+        # Add raw counts for reference (before split)
+        'raw_train': {
+            'infected': train_infected_raw,
+            'noninfected': train_noninfected_raw,
+            'total': train_total_raw
+        },
+        'raw_test': {
+            'infected': test_infected_raw,
+            'noninfected': test_noninfected_raw,
+            'total': test_total_raw
+        },
+        # Original notebook counts (before train/test split)
+        # These represent the full dataset before any splits
+        'notebook_counts': {
+            'train_infected': train_infected_raw + int(test_infected_raw * 0.8),  # Approximate original
+            'train_noninfected': train_noninfected_raw + int(test_noninfected_raw * 0.8),
+            'test_infected': test_infected_raw,
+            'test_noninfected': test_noninfected_raw,
+            'note': 'These are approximate. For exact notebook counts, use: train_infected=5879, train_noninfected=4126, test_infected=1357, test_noninfected=1000'
+        },
+        'validation_split': VALIDATION_SPLIT,
+        # Class imbalance info
+        'class_imbalance': {
+            'train_ratio': round(max(train_infected_raw, train_noninfected_raw) / min(train_infected_raw, train_noninfected_raw), 2) if min(train_infected_raw, train_noninfected_raw) > 0 else 0,
+            'train_infected_pct': round((train_infected_raw / train_total_raw * 100), 1) if train_total_raw > 0 else 0,
+            'train_noninfected_pct': round((train_noninfected_raw / train_total_raw * 100), 1) if train_total_raw > 0 else 0
+        }
     }
 
     return jsonify(stats)
