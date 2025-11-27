@@ -355,12 +355,25 @@ st.markdown("""
 def get_api_status():
     """Check API status"""
     try:
-        response = requests.get(f"{API_BASE_URL}/health", timeout=10)
+        # Increased timeout for Render cold starts
+        response = requests.get(f"{API_BASE_URL}/health", timeout=30)
         if response.status_code == 200:
             return response.json()
         return None
+    except requests.exceptions.Timeout:
+        # Service might be waking up
+        return None
     except:
         return None
+
+
+def wake_up_api():
+    """Wake up the API service by pinging the health endpoint"""
+    try:
+        response = requests.get(f"{API_BASE_URL}/health", timeout=60)
+        return response.status_code == 200
+    except:
+        return False
 
 
 def get_model_info(use_cache=False):
@@ -1038,58 +1051,83 @@ def show_analytics():
         
         col1, col2 = st.columns(2)
         
-        # ROC Curve
-        with col1:
-            st.markdown("### ROC Curve (Receiver Operating Characteristic)")
-            # Generate representative ROC curve based on AUC score
-            # Using a smooth approximation for visualization
-            fpr = np.linspace(0, 1, 100)
-            # Approximate TPR based on AUC (simplified curve)
-            # Higher AUC = curve closer to top-left corner
-            tpr = np.power(fpr, 1 / (auc_score + 0.1)) if auc_score < 0.99 else 1 - np.power(1 - fpr, 1 / (1 - auc_score + 0.1))
-            tpr = np.clip(tpr, 0, 1)
-            
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(x=fpr, y=tpr, mode='lines', 
-                                   name=f'ROC Curve (AUC = {auc_score:.3f})',
-                                   line=dict(color='#1f77b4', width=2)))
-            fig.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode='lines', 
-                                   name='Random Classifier (AUC = 0.5)',
-                                   line=dict(color='red', width=2, dash='dash')))
-            fig.update_layout(
-                title=f'ROC Curve (AUC = {auc_score:.3f})',
-                xaxis_title='False Positive Rate',
-                yaxis_title='True Positive Rate',
-                height=400,
-                xaxis=dict(range=[0, 1]),
-                yaxis=dict(range=[0, 1])
-            )
-            st.plotly_chart(fig, use_container_width=True)
-            st.caption(f"**AUC Score**: {auc_score:.4f} - Excellent discrimination ability")
+            # ROC Curve
+            with col1:
+                st.markdown("### ROC Curve (Receiver Operating Characteristic)")
+                
+                # Generate ROC curve based on actual AUC score
+                # For high AUC (>0.99), create a more realistic curve
+                fpr = np.linspace(0, 1, 100)
+                
+                if auc_score >= 0.998:
+                    # For very high AUC (like 0.9984), create a curve that stays very close to top-left
+                    # This creates a more realistic representation
+                    tpr = 1 - np.power(1 - fpr, 1 / (1 - auc_score + 0.001))
+                    # Ensure it starts at (0,0) and ends at (1,1)
+                    tpr[0] = 0
+                    tpr[-1] = 1
+                elif auc_score >= 0.99:
+                    # For high AUC, use a curve that rises quickly
+                    tpr = 1 - np.power(1 - fpr, 1 / (1 - auc_score + 0.01))
+                    tpr[0] = 0
+                    tpr[-1] = 1
+                else:
+                    # For lower AUC, use standard approximation
+                    tpr = np.power(fpr, 1 / (auc_score + 0.1))
+                
+                tpr = np.clip(tpr, 0, 1)
+                
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(x=fpr, y=tpr, mode='lines', 
+                                       name=f'ROC Curve (AUC = {auc_score:.4f})',
+                                       line=dict(color='orange', width=2)))
+                fig.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode='lines', 
+                                       name='Random Classifier (AUC = 0.5)',
+                                       line=dict(color='darkblue', width=2, dash='dash')))
+                fig.update_layout(
+                    title=f'ROC Curve (AUC = {auc_score:.4f})',
+                    xaxis_title='False Positive Rate',
+                    yaxis_title='True Positive Rate',
+                    height=400,
+                    xaxis=dict(range=[0, 1]),
+                    yaxis=dict(range=[0, 1])
+                )
+                st.plotly_chart(fig, use_container_width=True)
+                st.caption(f"**AUC Score**: {auc_score:.4f} - Excellent discrimination ability")
         
         # Confusion Matrix
         with col2:
             st.markdown("### Confusion Matrix")
-            # Calculate confusion matrix from metrics
-            # Using: Precision = TP/(TP+FP), Recall = TP/(TP+FN), Accuracy = (TP+TN)/(TP+TN+FP+FN)
-            accuracy = metrics.get('test_accuracy', 0)
-            precision = metrics.get('test_precision', 0)
-            recall = metrics.get('test_recall', 0)
             
-            # Estimate confusion matrix (representative values)
-            # Assuming test set: 1357 infected + 1000 non-infected = 2357 total
-            total_test = 2357
-            infected_test = 1357
-            noninfected_test = 1000
-            
-            # Calculate TP, FP, TN, FN from metrics
-            # Recall = TP / (TP + FN) = TP / infected_test
-            TP = int(recall * infected_test)
-            FN = infected_test - TP
-            
-            # Precision = TP / (TP + FP)
-            FP = int(TP / precision - TP) if precision > 0 else 0
-            TN = noninfected_test - FP
+            # Use actual confusion matrix if available, otherwise calculate from metrics
+            if 'confusion_matrix' in metrics:
+                # Use actual confusion matrix values
+                cm_data = metrics['confusion_matrix']
+                TN = cm_data.get('true_negatives', 0)
+                FP = cm_data.get('false_positives', 0)
+                FN = cm_data.get('false_negatives', 0)
+                TP = cm_data.get('true_positives', 0)
+            else:
+                # Fallback: Calculate confusion matrix from metrics
+                # Using: Precision = TP/(TP+FP), Recall = TP/(TP+FN), Accuracy = (TP+TN)/(TP+TN+FP+FN)
+                accuracy = metrics.get('test_accuracy', 0)
+                precision = metrics.get('test_precision', 0)
+                recall = metrics.get('test_recall', 0)
+                
+                # Estimate confusion matrix (representative values)
+                # Assuming test set: 1357 infected + 1000 non-infected = 2357 total
+                total_test = 2357
+                infected_test = 1357
+                noninfected_test = 1000
+                
+                # Calculate TP, FP, TN, FN from metrics
+                # Recall = TP / (TP + FN) = TP / infected_test
+                TP = int(recall * infected_test)
+                FN = infected_test - TP
+                
+                # Precision = TP / (TP + FP)
+                FP = int(TP / precision - TP) if precision > 0 else 0
+                TN = noninfected_test - FP
             
             # Create confusion matrix
             cm = np.array([[TN, FP], [FN, TP]])
@@ -1171,7 +1209,21 @@ def show_predict():
     
     api_status = get_api_status()
     if not api_status:
-        st.error("Cannot connect to API. Please ensure the API server is running.")
+        st.warning("⚠️ Cannot connect to API. The service may be waking up (Render free tier takes 30-60 seconds).")
+        st.info("💡 **Tip**: The first request after inactivity takes longer. Click 'Wake Up Service' to ping the API.")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🔄 Retry Connection", use_container_width=True):
+                st.rerun()
+        with col2:
+            if st.button("⏰ Wake Up Service", use_container_width=True):
+                with st.spinner("Waking up API service (this may take 30-60 seconds)..."):
+                    if wake_up_api():
+                        st.success("✅ Service is awake! You can now make predictions.")
+                        st.rerun()
+                    else:
+                        st.error("❌ Service is still waking up. Please wait a moment and try again.")
         return
     
     # Tabs for different prediction modes
@@ -1194,17 +1246,32 @@ def show_predict():
             
             with col2:
                 if st.button("Predict", type="primary", use_container_width=True):
-                    with st.spinner("Processing image..."):
+                    with st.spinner("Processing image... (This may take 30-60 seconds if the service is waking up)"):
                         try:
                             import time
                             uploaded_file.seek(0)
                             files = {'file': (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type or 'image/jpeg')}
                             start_time = time.time()
-                            response = requests.post(
-                                f"{API_BASE_URL}/predict",
-                                files=files,
-                                timeout=30
-                            )
+                            
+                            # Try with longer timeout for Render cold starts (90 seconds)
+                            # Render free tier services can take 30-60 seconds to wake up
+                            max_retries = 2
+                            response = None
+                            for attempt in range(max_retries):
+                                try:
+                                    response = requests.post(
+                                        f"{API_BASE_URL}/predict",
+                                        files=files,
+                                        timeout=90  # Increased from 30 to 90 seconds for cold starts
+                                    )
+                                    break  # Success, exit retry loop
+                                except requests.exceptions.Timeout:
+                                    if attempt < max_retries - 1:
+                                        st.info(f"⏳ Service is waking up... Retrying ({attempt + 1}/{max_retries})")
+                                        time.sleep(2)  # Wait 2 seconds before retry
+                                    else:
+                                        raise
+                            
                             latency = time.time() - start_time
                             
                             if response.status_code == 200:
@@ -1239,8 +1306,26 @@ def show_predict():
                                 })
                             else:
                                 st.error(f"Prediction failed: {response.json().get('error', 'Unknown error')}")
+                        except requests.exceptions.Timeout:
+                            st.error("⏱️ **Request Timeout**: The API service is taking too long to respond.")
+                            st.warning("""
+                            **This usually happens because:**
+                            - The Render service is waking up from sleep (free tier takes 30-60 seconds)
+                            - The service is under heavy load
+                            
+                            **Solutions:**
+                            1. Wait 30-60 seconds and try again
+                            2. Click the "Retry" button below
+                            3. Check the API health: https://pcos-api-1fce.onrender.com/health
+                            """)
+                            if st.button("🔄 Retry Prediction", key="retry_prediction"):
+                                st.rerun()
+                        except requests.exceptions.ConnectionError:
+                            st.error("🔌 **Connection Error**: Cannot reach the API server.")
+                            st.info("The service may be starting up. Please wait a moment and try again.")
                         except Exception as e:
-                            st.error(f"Error: {str(e)}")
+                            st.error(f"❌ **Error**: {str(e)}")
+                            st.info("If this persists, check the API health endpoint or try again in a moment.")
     
     with tab2:
         st.subheader("Batch Prediction")
@@ -1264,7 +1349,8 @@ def show_predict():
                 try:
                     file.seek(0)
                     files = {'file': (file.name, file.getvalue(), file.type or 'image/jpeg')}
-                    response = requests.post(f"{API_BASE_URL}/predict", files=files, timeout=30)
+                    # Increased timeout for Render cold starts
+                    response = requests.post(f"{API_BASE_URL}/predict", files=files, timeout=90)
                     latency = response.elapsed.total_seconds() if hasattr(response, 'elapsed') else 0
                     
                     if response.status_code == 200:
@@ -1631,9 +1717,18 @@ def main():
     api_status = get_api_status()
     if not api_status:
         st.sidebar.error("API Offline")
-        st.sidebar.info("Start API: `python run_api.py`")
+        st.sidebar.warning("⚠️ Service may be waking up (30-60s on Render free tier)")
+        if st.sidebar.button("⏰ Wake Up", key="sidebar_wakeup"):
+            with st.sidebar:
+                with st.spinner("Waking up..."):
+                    if wake_up_api():
+                        st.success("✅ Awake!")
+                        st.rerun()
     else:
         st.sidebar.success("API Online")
+        # Show cold start warning if needed
+        if 'render' in API_BASE_URL.lower() or 'onrender.com' in API_BASE_URL.lower():
+            st.sidebar.info("💡 First request may take 30-60s (cold start)")
     
     # Use container to prevent flash of content
     with st.container():

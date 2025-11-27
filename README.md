@@ -313,8 +313,9 @@ Record latency and response times for each configuration.
 **Detailed Guide**: See [RENDER_DEPLOYMENT_GUIDE.md](RENDER_DEPLOYMENT_GUIDE.md) for step-by-step instructions.
 
 **Deployment URLs**: 
-- **API**: [Add your Render API URL here after deployment]
-- **UI**: [Add your Render UI URL here after deployment]
+- **API**: https://pcos-api-1fce.onrender.com
+- **UI**: https://pcos-ui.onrender.com
+- **API Health Check**: https://pcos-api-1fce.onrender.com/health
 
 **Note**: Free tier services may take 30 seconds to wake up after inactivity (cold start).
 

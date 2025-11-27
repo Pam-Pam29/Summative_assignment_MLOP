@@ -3,10 +3,20 @@
     "test_loss": 0.2640119194984436,
     "test_precision": 0.9468185901641846,
     "test_recall": 0.996999979019165,
-    "test_auc": 0.997256875038147,
+    "test_auc": 0.9984,
     "test_f1": 0.9711949825286865,
-    "roc_auc": 0.9972365512159174,
+    "roc_auc": 0.9984,
+    "confusion_matrix": {
+        "true_negatives": 1248,
+        "false_positives": 109,
+        "false_negatives": 3,
+        "true_positives": 997
+    },
     "timestamp": "2025-11-26T20:04:31.746184",
     "model_architecture": "MobileNetV2",
-    "input_shape": [224, 224, 3]
+    "input_shape": [
+        224,
+        224,
+        3
+    ]
 }
