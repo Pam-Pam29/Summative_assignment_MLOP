@@ -123,15 +123,15 @@ def train_model(model, train_generator, validation_generator,
         )
     ]
 
-    # Train model with memory optimizations for Render
+    # Train model
+    # Note: workers and use_multiprocessing are not supported in newer TensorFlow versions
+    # Memory optimization is handled via batch_size reduction instead
     history = model.fit(
         train_generator,
         validation_data=validation_generator,
         epochs=epochs,
         callbacks=callbacks,
-        verbose=verbose,
-        workers=1,  # Reduce workers for Render memory constraints
-        use_multiprocessing=False  # Disable multiprocessing to save memory
+        verbose=verbose
     )
 
     return history
