@@ -546,3 +546,4 @@ Issues Found:
 - UI logs: Terminal where `streamlit run app.py` is running
 - Docker logs: `docker-compose logs`
 
+

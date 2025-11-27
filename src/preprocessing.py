@@ -92,6 +92,7 @@ def create_data_generators(train_dir, test_dir, img_size=(224, 224), batch_size=
 def count_images(directory):
     """
     Count images in each class directory
+    Always reads fresh from filesystem (no caching)
 
     Args:
         directory: Directory to count images in
@@ -101,16 +102,27 @@ def count_images(directory):
     """
     counts = {}
     total = 0
+    dir_path = Path(directory)
 
-    if Path(directory).exists():
-        for class_dir in Path(directory).iterdir():
+    if dir_path.exists():
+        # List all subdirectories (class folders)
+        for class_dir in dir_path.iterdir():
             if class_dir.is_dir():
-                image_files = list(class_dir.glob('*.jpg')) + \
-                             list(class_dir.glob('*.png')) + \
-                             list(class_dir.glob('*.jpeg'))
+                # Count all image files (case-insensitive extensions)
+                image_files = (
+                    list(class_dir.glob('*.jpg')) + 
+                    list(class_dir.glob('*.JPG')) +
+                    list(class_dir.glob('*.jpeg')) + 
+                    list(class_dir.glob('*.JPEG')) +
+                    list(class_dir.glob('*.png')) + 
+                    list(class_dir.glob('*.PNG'))
+                )
                 counts[class_dir.name] = len(image_files)
                 total += len(image_files)
         counts['total'] = total
+    else:
+        # Log if directory doesn't exist for debugging
+        print(f"⚠️ Directory does not exist: {dir_path.absolute()}")
 
     return counts
 
