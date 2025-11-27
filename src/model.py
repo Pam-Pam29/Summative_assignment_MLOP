@@ -140,6 +140,61 @@ def train_model(model, train_generator, validation_generator,
     return history
 
 
+def save_model_for_render(model, base_name='pcos_model', models_dir='models'):
+    """
+    Save model optimized for Render deployment
+    Saves in multiple formats with Render-friendly naming
+    
+    Args:
+        model: Trained Keras model to save
+        base_name: Base name for model files (without extension)
+        models_dir: Directory to save models in
+    
+    Returns:
+        Dictionary with saved file paths
+    """
+    models_path = Path(models_dir)
+    models_path.mkdir(parents=True, exist_ok=True)
+    
+    saved_formats = {}
+    
+    try:
+        # 1. Save in .keras format (primary - most compatible)
+        keras_path = models_path / f"{base_name}.keras"
+        print(f"💾 Saving model in .keras format to {keras_path}...")
+        model.save(str(keras_path))
+        saved_formats['keras'] = str(keras_path)
+        print(f"✅ Model saved successfully to {keras_path}")
+    except Exception as e:
+        print(f"⚠️ Warning: Failed to save .keras format: {str(e)}")
+    
+    try:
+        # 2. Save weights separately (lightweight backup)
+        weights_path = models_path / f"{base_name}.weights.h5"
+        print(f"💾 Saving model weights to {weights_path}...")
+        model.save_weights(str(weights_path))
+        saved_formats['weights'] = str(weights_path)
+        print(f"✅ Weights saved successfully to {weights_path}")
+    except Exception as e:
+        print(f"⚠️ Warning: Failed to save weights: {str(e)}")
+    
+    try:
+        # 3. Save in .h5 format (legacy backup - may show warning but that's okay)
+        h5_path = models_path / f"{base_name}.h5"
+        print(f"💾 Saving model in .h5 format to {h5_path} (backup)...")
+        model.save(str(h5_path), save_format='h5')
+        saved_formats['h5'] = str(h5_path)
+        print(f"✅ Model saved successfully to {h5_path}")
+    except Exception as e:
+        print(f"⚠️ Warning: Failed to save .h5 format: {str(e)}")
+    
+    if not saved_formats:
+        raise Exception("Failed to save model in any format!")
+    
+    print(f"\n✅ Model saved successfully in {len(saved_formats)} format(s) for Render deployment")
+    return saved_formats
+
+
 def save_model_properly(model, base_path='models/pcos_model', save_weights=True):
     """
     Save model in multiple formats for maximum compatibility
@@ -194,6 +249,84 @@ def save_model_properly(model, base_path='models/pcos_model', save_weights=True)
     
     print(f"✅ Model saved successfully in {len(saved_paths)} format(s)")
     return saved_paths
+
+
+def load_model_with_fallback(models_dir='models', base_name='pcos_model'):
+    """
+    Load model with automatic fallback - optimized for Render
+    Tries multiple formats and paths automatically
+    
+    Args:
+        models_dir: Directory containing model files
+        base_name: Base name of model files (without extension)
+    
+    Returns:
+        Loaded Keras model or None if not found
+    """
+    models_path = Path(models_dir)
+    
+    # Priority order: .keras > .h5 > weights (rebuild)
+    load_attempts = [
+        (models_path / f"{base_name}.keras", "keras format"),
+        (models_path / f"{base_name}.h5", "H5 format"),
+    ]
+    
+    # Try loading full model files first
+    for model_path, format_name in load_attempts:
+        if model_path.exists():
+            try:
+                print(f"🔄 Attempting to load model from {format_name}: {model_path}...")
+                # Try with compile=False first (more compatible)
+                try:
+                    model = tf.keras.models.load_model(str(model_path), compile=False)
+                    print(f"✅ Model loaded from {format_name} (compile=False)")
+                except Exception:
+                    # Try with compile=True
+                    model = tf.keras.models.load_model(str(model_path))
+                    print(f"✅ Model loaded from {format_name} (compile=True)")
+                
+                # Recompile with standard metrics
+                model.compile(
+                    optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
+                    loss='binary_crossentropy',
+                    metrics=[
+                        'accuracy',
+                        tf.keras.metrics.Precision(name='precision'),
+                        tf.keras.metrics.Recall(name='recall'),
+                        tf.keras.metrics.AUC(name='auc')
+                    ]
+                )
+                print(f"✅ Model compiled and ready!")
+                return model
+            except Exception as e:
+                print(f"❌ Failed to load {format_name}: {str(e)}")
+                continue
+    
+    # Fallback: Try loading from weights (requires rebuilding model)
+    weights_path = models_path / f"{base_name}.weights.h5"
+    if weights_path.exists():
+        try:
+            print(f"🔄 Attempting to rebuild model from weights: {weights_path}...")
+            print("⚠️ This will download MobileNetV2 base weights (~9MB) - may take a moment...")
+            model = build_model(img_height=224, img_width=224, learning_rate=1e-4)
+            model.load_weights(str(weights_path))
+            model.compile(
+                optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
+                loss='binary_crossentropy',
+                metrics=[
+                    'accuracy',
+                    tf.keras.metrics.Precision(name='precision'),
+                    tf.keras.metrics.Recall(name='recall'),
+                    tf.keras.metrics.AUC(name='auc')
+                ]
+            )
+            print(f"✅ Model rebuilt and loaded from weights!")
+            return model
+        except Exception as e:
+            print(f"❌ Failed to rebuild from weights: {str(e)}")
+    
+    print(f"❌ Could not load model from any format in {models_dir}")
+    return None
 
 
 def save_training_history(history, model, test_metrics, save_path='models/training_history.json'):

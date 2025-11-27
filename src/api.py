@@ -46,7 +46,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 
 from src.prediction import predict_single_image, validate_image_file, preprocess_image
-from src.model import load_saved_model, build_model, train_model, save_training_history
+from src.model import load_saved_model, build_model, train_model, save_training_history, load_model_with_fallback
 from src.preprocessing import create_data_generators, count_images
 
 app = Flask(__name__)
@@ -106,130 +106,19 @@ def load_model():
         # Clear any existing TensorFlow sessions to free memory
         tf.keras.backend.clear_session()
         
-        # IMPORTANT: Try full model files first (faster - no need to rebuild or download)
-        # This is faster than rebuilding from weights which requires downloading MobileNetV2
-        # Try loading from different formats
-        for model_path in MODEL_PATHS:
-            try:
-                if os.path.exists(model_path) or os.path.isdir(model_path):
-                    print(f"Attempting to load model from {model_path}...")
-                    
-                    # Try loading with compile=False first (for compatibility)
-                    try:
-                        print(f"  Trying to load {model_path} with compile=False...")
-                        # For .keras files, try with safe_mode=False if it's a newer format
-                        if model_path.endswith('.keras'):
-                            try:
-                                model = tf.keras.models.load_model(model_path, compile=False, safe_mode=False)
-                            except TypeError:
-                                # Older TensorFlow versions don't have safe_mode parameter
-                                model = tf.keras.models.load_model(model_path, compile=False)
-                        else:
-                            model = tf.keras.models.load_model(model_path, compile=False)
-                        
-                        # Recompile with the same metrics
-                        print(f"  Model loaded, recompiling...")
-                        model.compile(
-                            optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
-                            loss='binary_crossentropy',
-                            metrics=[
-                                'accuracy',
-                                tf.keras.metrics.Precision(name='precision'),
-                                tf.keras.metrics.Recall(name='recall'),
-                                tf.keras.metrics.AUC(name='auc')
-                            ]
-                        )
-                        model_loaded_at = datetime.now().isoformat()
-                        MODEL_PATH = model_path  # Update to the working path
-                        print(f"✅ Model loaded successfully from {model_path}")
-                        return model
-                    except Exception as e1:
-                        error_msg = str(e1)
-                        # Check if it's the known architecture mismatch error
-                        if "expects 1 input(s), but it received 2 input tensors" in error_msg:
-                            print(f"  ⚠️ Model file {model_path} has architecture mismatch (likely saved incorrectly)")
-                            print(f"     This is a known issue - will fall back to weights loading")
-                        else:
-                            print(f"  ❌ Error loading {model_path} with compile=False: {error_msg}")
-                        import traceback
-                        traceback.print_exc()
-                        # Try with compile=True
-                        try:
-                            print(f"  Trying to load {model_path} with compile=True...")
-                            if model_path.endswith('.keras'):
-                                try:
-                                    model = tf.keras.models.load_model(model_path, safe_mode=False)
-                                except TypeError:
-                                    model = tf.keras.models.load_model(model_path)
-                            else:
-                                model = tf.keras.models.load_model(model_path)
-                            model_loaded_at = datetime.now().isoformat()
-                            MODEL_PATH = model_path
-                            print(f"✅ Model loaded successfully from {model_path} (with compile=True)")
-                            return model
-                        except Exception as e2:
-                            error_msg = str(e2)
-                            if "expects 1 input(s), but it received 2 input tensors" in error_msg:
-                                print(f"  ⚠️ Model file {model_path} has architecture mismatch")
-                                print(f"     Will fall back to weights loading (this will download MobileNetV2)")
-                            else:
-                                print(f"  ❌ Error loading {model_path} with compile=True: {error_msg}")
-                            import traceback
-                            traceback.print_exc()
-                            continue
-            except Exception as e:
-                print(f"  Error checking {model_path}: {str(e)[:100]}")
-                continue
+        # Use the optimized load_model_with_fallback function (SIMPLIFIED!)
+        print("🔄 Using optimized model loading with automatic fallback...")
+        model = load_model_with_fallback(models_dir='models', base_name='pcos_model')
         
-        # If full model loading failed, try weights as fallback (requires downloading MobileNetV2)
-        # Weights-only loading uses less memory but takes longer (downloads base model)
-        if model is None:
-            print("⚠️ Full model files not found or failed to load. Trying weights as fallback...")
-            for weights_path in WEIGHTS_PATHS:
-                if os.path.exists(weights_path):
-                    print(f"Attempting to rebuild model from weights: {weights_path}...")
-                    print("⚠️ This will download MobileNetV2 base weights (~9MB) - may take a moment...")
-                    try:
-                        from src.model import build_model
-                        # Rebuild the architecture (lightweight)
-                        model = build_model(img_height=224, img_width=224, learning_rate=1e-4)
-                        # Load the weights (much smaller than full model)
-                        model.load_weights(weights_path)
-                        # Compile the model
-                        model.compile(
-                            optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
-                            loss='binary_crossentropy',
-                            metrics=[
-                                'accuracy',
-                                tf.keras.metrics.Precision(name='precision'),
-                                tf.keras.metrics.Recall(name='recall'),
-                                tf.keras.metrics.AUC(name='auc')
-                            ]
-                        )
-                        model_loaded_at = datetime.now().isoformat()
-                        MODEL_PATH = weights_path
-                        print(f"✅ Model rebuilt and loaded from weights: {weights_path}")
-                        return model
-                    except Exception as e:
-                        print(f"❌ Error rebuilding from weights {weights_path}: {str(e)}")
-                        import traceback
-                        traceback.print_exc()
-                        model = None  # Reset for next attempt
-                        continue
-        
-        # If we get here, no model loaded
-        if model is None:
-            print("❌ Could not load model from any of the following paths:")
-            for path in MODEL_PATHS:
-                exists = os.path.exists(path) or os.path.isdir(path)
-                print(f"   - {path}: {'✅ exists' if exists else '❌ not found'}")
-            for weights_path in WEIGHTS_PATHS:
-                if os.path.exists(weights_path):
-                    print(f"   - {weights_path}: ✅ exists (can rebuild from weights)")
-                else:
-                    print(f"   - {weights_path}: ❌ not found")
-            print("\n💡 Solution: Save weights only in Colab and download them.")
-            print("   See COLAB_SAVE_WEIGHTS_ONLY.md for instructions.")
+        if model is not None:
+            model_loaded_at = datetime.now().isoformat()
+            MODEL_PATH = 'models/pcos_model.keras'  # Update to primary path
+            print("✅ Model loaded successfully!")
+            return model
+        else:
+            model_load_error = "Model not found in any format"
+            print("❌ Model loading failed - no model files found")
+            return None
     except Exception as e:
         error_msg = f"Error loading model: {str(e)}"
         print(f"❌ {error_msg}")
@@ -316,33 +205,35 @@ def health_check():
             'ready': model is not None  # Indicates if ready for predictions
         }
         
-        # Add message based on model status
+        # Add message based on model status with proper HTTP status codes
         if model is None:
             if model_exists:
                 error_detail = f"Model file exists but failed to load. {model_load_error if model_load_error else 'Check server logs for details.'}"
                 model_status['message'] = error_detail
                 model_status['error'] = model_load_error  # Include error details
                 model_status['status'] = 'error'  # Model should have loaded at startup
+                # Return 503 (Service Unavailable) if model exists but failed to load
+                return jsonify(model_status), 503
             else:
                 model_status['message'] = 'Model file not found. Service is running but predictions will fail until model is trained.'
                 model_status['status'] = 'no_model'  # Still healthy, just no model
+                # Return 200 (OK) if no model file - service is running, just not ready
+                return jsonify(model_status), 200
         else:
             model_status['message'] = 'Model loaded successfully at startup (~10MB, optimized for Render)'
             model_status['status'] = 'ready'
-        
-        # ALWAYS return 200 - service is healthy even if model isn't loaded
-        # This ensures Render health checks pass and service doesn't get marked as unhealthy
-        return jsonify(model_status), 200
+            # Return 200 (OK) when model is ready
+            return jsonify(model_status), 200
         
     except Exception as e:
-        # Even on error, return 200 with error details
-        # This prevents Render from marking service as unhealthy due to transient errors
+        # Return 500 (Internal Server Error) for health check errors
+        # This allows Render to detect service issues
         return jsonify({
             'status': 'error',
             'service': 'running',
             'error': str(e),
-            'message': 'Service is running but encountered an error during health check'
-        }), 200
+            'message': 'Service encountered an error during health check'
+        }), 500
 
 
 @app.route('/predict', methods=['POST'])

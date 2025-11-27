@@ -167,11 +167,11 @@ def retrain_model(train_dir='data/train', test_dir='data/test',
     from sklearn.metrics import f1_score
     test_metrics['test_f1'] = float(f1_score(y_true, y_pred))
     
-    # Save model properly in multiple formats
-    from src.model import save_model_properly
-    print("\n💾 Saving model in multiple formats for compatibility...")
-    saved_paths = save_model_properly(model, base_path=model_save_path.replace('.h5', ''), save_weights=True)
-    print(f"✅ Model saved successfully to: {', '.join(saved_paths)}")
+    # Save model properly in multiple formats (optimized for Render)
+    from src.model import save_model_for_render
+    print("\n💾 Saving model in multiple formats for Render deployment...")
+    saved_formats = save_model_for_render(model, base_name='pcos_model', models_dir='models')
+    print(f"✅ Model saved successfully in {len(saved_formats)} format(s): {list(saved_formats.keys())}")
 
     # Save training history
     save_training_history(history, model, test_metrics)
