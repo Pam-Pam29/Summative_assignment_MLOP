@@ -134,13 +134,13 @@ class TrainingProgressCallback(Callback):
             val_acc = logs.get('val_accuracy', 'N/A')
             training_status['message'] = f'Epoch {epoch_num}/{self.total_epochs} - Loss: {logs.get("loss", 0):.4f}, Acc: {logs.get("accuracy", 0):.4f}, Val Loss: {val_loss:.4f if isinstance(val_loss, (int, float)) else "N/A"}, Val Acc: {val_acc:.4f if isinstance(val_acc, (int, float)) else "N/A"}'
         
-        print(f"✅ Epoch {epoch_num}/{self.total_epochs} completed - Loss: {logs.get('loss', 0):.4f}, Acc: {logs.get('accuracy', 0):.4f}")
+        print(f" Epoch {epoch_num}/{self.total_epochs} completed - Loss: {logs.get('loss', 0):.4f}, Acc: {logs.get('accuracy', 0):.4f}")
     
     def on_train_end(self, logs=None):
         global training_status
         training_status['progress'] = 90
         training_status['message'] = 'Training completed, evaluating...'
-        print("📊 Training completed, moving to evaluation...")
+        print(" Training completed, moving to evaluation...")
 
 # Load model function (called at startup for fast predictions)
 # For Render: 10MB model loads quickly and keeps service responsive
@@ -156,21 +156,21 @@ def load_model():
         tf.keras.backend.clear_session()
         
         # Use the optimized load_model_with_fallback function (SIMPLIFIED!)
-        print("🔄 Using optimized model loading with automatic fallback...")
+        print(" Using optimized model loading with automatic fallback...")
         model = load_model_with_fallback(models_dir='models', base_name='pcos_model')
         
         if model is not None:
             model_loaded_at = datetime.now().isoformat()
             MODEL_PATH = 'models/pcos_model.keras'  # Update to primary path
-            print("✅ Model loaded successfully!")
+            print(" Model loaded successfully!")
             return model
         else:
             model_load_error = "Model not found in any format"
-            print("❌ Model loading failed - no model files found")
+            print(" Model loading failed - no model files found")
             return None
     except Exception as e:
         error_msg = f"Error loading model: {str(e)}"
-        print(f"❌ {error_msg}")
+        print(f" {error_msg}")
         model_load_error = error_msg
         import traceback
         traceback.print_exc()
@@ -180,9 +180,9 @@ def load_model():
 # LAZY LOADING: Model will be loaded on first prediction request
 # This ensures service starts immediately and health checks pass
 # Model loads only when needed (lazy loading)
-print("🚀 Starting API service...")
-print("📦 Model will be loaded lazily on first prediction request (optimized for Render)...")
-print("✅ API service started! Ready for requests (model will load on demand)...")
+print(" Starting API service...")
+print(" Model will be loaded lazily on first prediction request (optimized for Render)...")
+print(" API service started! Ready for requests (model will load on demand)...")
 
 
 def allowed_file(filename):
@@ -261,8 +261,8 @@ def predict():
     global model, model_loaded_at, model_load_error
     if model is None:
         # Load model on demand (lazy loading)
-        print("📦 Model not loaded yet. Loading on demand (lazy loading)...")
-        print("⏳ This may take 10-30 seconds on first request...")
+        print(" Model not loaded yet. Loading on demand (lazy loading)...")
+        print(" This may take 10-30 seconds on first request...")
         import time
         load_start = time.time()
         try:
@@ -271,7 +271,7 @@ def predict():
             if model is not None:
                 model_loaded_at = datetime.now().isoformat()
                 model_load_error = None
-                print(f"✅ Model loaded successfully on demand! (took {load_time:.2f}s)")
+                print(f" Model loaded successfully on demand! (took {load_time:.2f}s)")
             else:
                 return jsonify({
                     'error': 'Model not loaded. Predictions cannot be made.',
@@ -280,7 +280,7 @@ def predict():
         except Exception as e:
             load_time = time.time() - load_start
             error_msg = f"Error loading model: {str(e)}"
-            print(f"❌ {error_msg} (after {load_time:.2f}s)")
+            print(f" {error_msg} (after {load_time:.2f}s)")
             model_load_error = error_msg
             import traceback
             traceback.print_exc()
@@ -414,7 +414,7 @@ def upload_training_data():
     with open(log_file, 'w') as f:
         json.dump(logs, f, indent=2)
     
-    print(f"✅ Upload logged: {len(uploaded_files)} files for {category} category")
+    print(f" Upload logged: {len(uploaded_files)} files for {category} category")
 
     return jsonify({
         'success': True,
@@ -443,8 +443,8 @@ def retrain():
     # Note: This still uses the same worker process, but allows the endpoint to return immediately
     thread = threading.Thread(target=train_model_background, daemon=False)
     thread.start()
-    print(f"✅ Training started in background thread (PID: {thread.ident})")
-    print(f"⚠️  Note: Training with 3 epochs, batch_size=8 to fit within Render free tier limits")
+    print(f" Training started in background thread (PID: {thread.ident})")
+    print(f"  Note: Training with 3 epochs, batch_size=8 to fit within Render free tier limits")
 
     return jsonify({
         'success': True,
@@ -540,7 +540,7 @@ def train_model_background():
         from src.model import save_model_for_render
         training_status['message'] = 'Saving model...'
         saved_paths = save_model_for_render(model, base_name='pcos_model', models_dir='models')
-        print(f"✅ Model saved successfully to: {', '.join(saved_paths.values())}")
+        print(f" Model saved successfully to: {', '.join(saved_paths.values())}")
 
         training_status = {
             'status': 'completed',
@@ -596,12 +596,12 @@ def model_info():
             with open(history_path, 'r') as f:
                 history = json.load(f)
                 info['training_history'] = history
-                print(f"✅ Loaded training history from {history_path}")
+                print(f" Loaded training history from {history_path}")
         except Exception as e:
-            print(f"❌ Error loading training history: {e}")
+            print(f" Error loading training history: {e}")
             info['training_history_error'] = str(e)
     else:
-        print(f"⚠️ Training history file not found: {history_path}")
+        print(f" Training history file not found: {history_path}")
         info['training_history'] = None
         info['training_history_message'] = 'training_history.json not found. Run the save code in your notebook.'
     
@@ -616,12 +616,12 @@ def model_info():
                 # Also add to training_history if it exists and doesn't have final_metrics
                 if 'training_history' in info and info['training_history'] and 'final_metrics' not in info['training_history']:
                     info['training_history']['final_metrics'] = metrics
-                print(f"✅ Loaded metrics from {metrics_path}")
+                print(f" Loaded metrics from {metrics_path}")
         except Exception as e:
-            print(f"❌ Error loading metrics: {e}")
+            print(f" Error loading metrics: {e}")
             info['metrics_error'] = str(e)
     else:
-        print(f"⚠️ Metrics file not found: {metrics_path}")
+        print(f" Metrics file not found: {metrics_path}")
 
     return jsonify(info)
 
