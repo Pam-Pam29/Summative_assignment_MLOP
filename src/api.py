@@ -487,7 +487,7 @@ def train_model_background():
             train_dir,
             Path('data/test'),
             img_size=(224, 224),
-            batch_size=16,  # Reduced for Render memory constraints
+            batch_size=8,  # Further reduced to 8 for Render free tier (prevents memory issues)
             validation_split=0.2
         )
 
@@ -495,19 +495,20 @@ def train_model_background():
         training_status['message'] = 'Building model...'
         import gc
         gc.collect()  # Clear memory before building model
+        tf.keras.backend.clear_session()  # Clear TensorFlow session
         new_model = build_model(img_height=224, img_width=224, learning_rate=1e-4)
 
-        # Train model (reduced epochs for Render free tier)
+        # Train model (aggressively reduced for Render free tier)
         training_status['message'] = 'Training model...'
         
         # Create progress callback for real-time updates
-        progress_callback = TrainingProgressCallback(total_epochs=5)  # Reduced to 5 epochs for Render
+        progress_callback = TrainingProgressCallback(total_epochs=3)  # Reduced to 3 epochs to prevent timeout
         
         history = train_model(
             new_model,
             train_gen,
             val_gen,
-            epochs=5,  # Reduced to 5 epochs for Render free tier (faster, prevents timeout)
+            epochs=3,  # Reduced to 3 epochs for Render free tier (fits within 120s timeout)
             model_save_path=MODEL_PATH,
             verbose=0,
             progress_callback=progress_callback
