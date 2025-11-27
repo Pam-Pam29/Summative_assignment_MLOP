@@ -444,7 +444,7 @@ def retrain():
     thread = threading.Thread(target=train_model_background, daemon=False)
     thread.start()
     print(f"✅ Training started in background thread (PID: {thread.ident})")
-    print(f"⚠️  Note: Training with 3 epochs, batch_size=8 to fit within Render free tier limits")
+    print(f"⚠️  Note: Training with BARE MINIMUM config (1 epoch, batch_size=4) for Render free tier")
 
     return jsonify({
         'success': True,
@@ -483,14 +483,14 @@ def train_model_background():
                             import shutil
                             shutil.copy2(img_file, dest_dir / img_file.name)
 
-        # Create data generators
+        # Create data generators (BARE MINIMUM for Render free tier)
         training_status['message'] = 'Creating data generators...'
         train_gen, val_gen, test_gen = create_data_generators(
             train_dir,
             Path('data/test'),
             img_size=(224, 224),
-            batch_size=8,  # Further reduced to 8 for Render free tier (prevents memory issues)
-            validation_split=0.2
+            batch_size=4,  # BARE MINIMUM: 4 for Render free tier (minimal memory usage)
+            validation_split=0.1  # BARE MINIMUM: 10% validation (faster training)
         )
 
         # Build model (use same parameters as notebook)
@@ -500,17 +500,17 @@ def train_model_background():
         tf.keras.backend.clear_session()  # Clear TensorFlow session
         new_model = build_model(img_height=224, img_width=224, learning_rate=1e-4)
 
-        # Train model (aggressively reduced for Render free tier)
+        # Train model (BARE MINIMUM for Render free tier - 1 epoch only)
         training_status['message'] = 'Training model...'
         
         # Create progress callback for real-time updates
-        progress_callback = TrainingProgressCallback(total_epochs=3)  # Reduced to 3 epochs to prevent timeout
+        progress_callback = TrainingProgressCallback(total_epochs=1)  # BARE MINIMUM: 1 epoch only
         
         history = train_model(
             new_model,
             train_gen,
             val_gen,
-            epochs=3,  # Reduced to 3 epochs for Render free tier (fits within 120s timeout)
+            epochs=1,  # BARE MINIMUM: 1 epoch for Render free tier (fits within timeout, minimal memory)
             model_save_path=MODEL_PATH,
             verbose=0,
             progress_callback=progress_callback

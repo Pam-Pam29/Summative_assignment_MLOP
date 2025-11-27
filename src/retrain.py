@@ -64,8 +64,8 @@ def merge_uploaded_data(upload_dir, train_dir):
 def retrain_model(train_dir='data/train', test_dir='data/test', 
                   upload_dir='data/uploads/training',
                   model_save_path='models/pcos_model.keras',
-                  epochs=20, batch_size=16, img_size=(224, 224),  # Reduced batch_size for Render
-                  validation_split=0.2, seed=42):
+                  epochs=1, batch_size=4, img_size=(224, 224),  # BARE MINIMUM for Render free tier
+                  validation_split=0.1, seed=42):  # BARE MINIMUM: 10% validation
     """
     Retrain the model with new data
 

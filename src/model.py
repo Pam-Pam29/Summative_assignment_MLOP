@@ -73,8 +73,8 @@ def build_model(img_height=224, img_width=224, learning_rate=1e-4):
 
 
 def train_model(model, train_generator, validation_generator, 
-                epochs=20, model_save_path='models/pcos_model.keras', 
-                patience=5, verbose=1, progress_callback=None):
+                epochs=1, model_save_path='models/pcos_model.keras', 
+                patience=3, verbose=1, progress_callback=None):  # BARE MINIMUM: 1 epoch, patience=3 for Render
     """
     Train the model with callbacks
 
