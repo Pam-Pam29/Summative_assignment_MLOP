@@ -202,25 +202,35 @@ def load_model():
     
     return model
 
-# Load model at startup (Model is now ~10MB - perfect for Render!)
-# Loading at startup ensures fast first prediction and better user experience
-# Model loads synchronously at startup - service waits for model to be ready
+# Load model at startup in background thread
+# This ensures service starts immediately (for health checks) while model loads
+# Model loading happens in background but starts immediately when module loads
 print("🚀 Starting API service...")
-print("📦 Loading model at startup (~10MB - optimized for Render deployment)...")
-try:
-    load_model()
-    if model is not None:
-        print("✅ Model loaded successfully at startup!")
-        print(f"   Model ready for predictions. Memory footprint: ~10MB")
-        print("✅ API service started and ready!")
-    else:
-        print("⚠️ Model not loaded - service will start but predictions will fail")
-        print("⚠️ Check model files exist in models/ directory")
-except Exception as e:
-    print(f"❌ Error loading model at startup: {str(e)}")
-    import traceback
-    traceback.print_exc()
-    print("⚠️ Service will start but predictions will fail until model is loaded")
+print("📦 Loading model at startup in background (~10MB - optimized for Render)...")
+
+def load_model_startup():
+    """Load model in background thread - doesn't block service startup"""
+    global model
+    try:
+        print("📦 Background: Starting model load...")
+        load_model()
+        if model is not None:
+            print("✅ Model loaded successfully at startup!")
+            print(f"   Model ready for predictions. Memory footprint: ~10MB")
+        else:
+            print("⚠️ Model not loaded - will retry on first prediction")
+            print("⚠️ Check model files exist in models/ directory")
+    except Exception as e:
+        print(f"❌ Error loading model at startup: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        print("⚠️ Will retry model loading on first prediction request")
+
+# Start model loading in background thread (non-daemon so it completes)
+# Service starts immediately, model loads in parallel
+model_loader_thread = threading.Thread(target=load_model_startup, daemon=False)
+model_loader_thread.start()
+print("✅ API service started! Model loading in background...")
 
 
 def allowed_file(filename):
