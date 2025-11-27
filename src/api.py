@@ -87,7 +87,8 @@ training_status = {
     'completed_at': None
 }
 
-# Lazy load model (only when needed, not at startup)
+# Load model function (called at startup for fast predictions)
+# For Render: 10MB model loads quickly and keeps service responsive
 def load_model():
     global model, model_loaded_at, MODEL_PATH, model_loading
     
@@ -201,13 +202,14 @@ def load_model():
     
     return model
 
-# Load model at startup (MobileNetV2 is small enough - only ~13MB)
-# No need for lazy loading anymore!
-print("🚀 Loading MobileNetV2 model at startup (13MB - small enough!)...")
+# Load model at startup (Model is now ~10MB - perfect for Render!)
+# Loading at startup ensures fast first prediction and better user experience
+print("🚀 Loading model at startup (~10MB - optimized for Render deployment)...")
 try:
     load_model()
     if model is not None:
         print("✅ Model loaded successfully at startup!")
+        print(f"   Model ready for predictions. Memory footprint: ~10MB")
     else:
         print("⚠️ Model not loaded - will use lazy loading as fallback")
 except Exception as e:
@@ -221,7 +223,7 @@ def allowed_file(filename):
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    """Health check endpoint - model is loaded at startup (MobileNetV2 is small enough)"""
+    """Health check endpoint - model is loaded at startup (~10MB, optimized for Render)"""
     # Check if model files exist without loading
     model_exists = False
     model_file_path = None
@@ -255,7 +257,7 @@ def health_check():
         else:
             model_status['error'] = f'Model file not found. Please train the model first.'
     else:
-        model_status['message'] = 'Model loaded successfully at startup (MobileNetV2 - 13MB)'
+        model_status['message'] = 'Model loaded successfully at startup (~10MB, optimized for Render)'
     
     return jsonify(model_status)
 
@@ -263,7 +265,7 @@ def health_check():
 @app.route('/predict', methods=['POST'])
 def predict():
     """Predict endpoint for single image"""
-    # Model should be loaded at startup (MobileNetV2 is small enough)
+    # Model is loaded at startup (~10MB) for fast response times
     if model is None:
         # Fallback: try to load if somehow not loaded
         load_model()
@@ -597,17 +599,37 @@ def model_info():
 @app.route('/dataset_stats', methods=['GET'])
 def dataset_stats():
     """Get dataset statistics - matches notebook split (validation_split=0.2)"""
-    train_dir = Path('data/train')
-    test_dir = Path('data/test')
-    upload_dir = Path(UPLOAD_FOLDER) / 'training'
+    # Check for persistent disk path first (Render deployment)
+    persistent_disk_path = Path('/opt/render/project/src/data')
+    if persistent_disk_path.exists():
+        # Use persistent disk if available
+        train_dir = persistent_disk_path / 'train'
+        test_dir = persistent_disk_path / 'test'
+        upload_dir = persistent_disk_path / 'uploads' / 'training'
+    else:
+        # Use local paths (development/local deployment)
+        train_dir = Path('data/train')
+        test_dir = Path('data/test')
+        upload_dir = Path(UPLOAD_FOLDER) / 'training'
     
     # Validation split used in notebook (0.2 = 20% for validation, 80% for training)
     VALIDATION_SPLIT = 0.2
 
-    # Count images in directories (gets actual counts from filesystem)
+    # Debug: Log directory existence and paths
+    print(f"📊 Dataset Stats Request - Checking directories...")
+    print(f"   Train dir exists: {train_dir.exists()} - Path: {train_dir.absolute()}")
+    print(f"   Test dir exists: {test_dir.exists()} - Path: {test_dir.absolute()}")
+    print(f"   Upload dir exists: {upload_dir.exists()} - Path: {upload_dir.absolute()}")
+    
+    # Count images in directories (gets actual counts from filesystem - ALWAYS fresh)
     train_counts = count_images(train_dir) if train_dir.exists() else {}
     test_counts = count_images(test_dir) if test_dir.exists() else {}
     uploaded_counts = count_images(upload_dir) if upload_dir.exists() else {}
+    
+    # Debug: Log what we found
+    print(f"   Train counts: {train_counts}")
+    print(f"   Test counts: {test_counts}")
+    print(f"   Uploaded counts: {uploaded_counts}")
     
     # Get raw class counts (handle both 'noninfected' and 'notinfected' directory names)
     # NOTE: These are the counts AFTER the 80/20 train/test split was applied during organization
@@ -690,6 +712,17 @@ def dataset_stats():
             'train_ratio': round(max(train_infected_raw, train_noninfected_raw) / min(train_infected_raw, train_noninfected_raw), 2) if min(train_infected_raw, train_noninfected_raw) > 0 else 0,
             'train_infected_pct': round((train_infected_raw / train_total_raw * 100), 1) if train_total_raw > 0 else 0,
             'train_noninfected_pct': round((train_noninfected_raw / train_total_raw * 100), 1) if train_total_raw > 0 else 0
+        },
+        # Debug info for Render troubleshooting
+        'debug_info': {
+            'train_dir_exists': train_dir.exists(),
+            'train_dir_path': str(train_dir.absolute()),
+            'test_dir_exists': test_dir.exists(),
+            'test_dir_path': str(test_dir.absolute()),
+            'upload_dir_exists': upload_dir.exists(),
+            'upload_dir_path': str(upload_dir.absolute()),
+            'timestamp': datetime.now().isoformat(),
+            'note': 'Stats are read fresh from filesystem on each request'
         }
     }
 
