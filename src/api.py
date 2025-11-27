@@ -603,9 +603,10 @@ def train_model_background():
         model = new_model
         model_loaded_at = datetime.now().isoformat()
         
-        # Save the newly trained model
-        model.save(MODEL_PATH)
-        print(f"Model saved to {MODEL_PATH}")
+        # Save the newly trained model in multiple formats for compatibility
+        from src.model import save_model_properly
+        saved_paths = save_model_properly(model, base_path='models/pcos_model', save_weights=True)
+        print(f"✅ Model saved successfully to: {', '.join(saved_paths)}")
 
         training_status = {
             'status': 'completed',

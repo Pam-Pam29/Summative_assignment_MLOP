@@ -133,6 +133,60 @@ def train_model(model, train_generator, validation_generator,
     return history
 
 
+def save_model_properly(model, base_path='models/pcos_model', save_weights=True):
+    """
+    Save model in multiple formats for maximum compatibility
+    This ensures the model can be loaded reliably on different systems
+    
+    Args:
+        model: Trained Keras model to save
+        base_path: Base path for saving (without extension)
+        save_weights: Whether to also save weights separately
+    
+    Returns:
+        List of saved file paths
+    """
+    saved_paths = []
+    Path(base_path).parent.mkdir(parents=True, exist_ok=True)
+    
+    try:
+        # 1. Save in .keras format (newer, most compatible with TensorFlow 2.x+)
+        keras_path = f"{base_path}.keras"
+        print(f"Saving model in .keras format to {keras_path}...")
+        model.save(keras_path, save_format='keras')
+        saved_paths.append(keras_path)
+        print(f"✅ Model saved successfully to {keras_path}")
+    except Exception as e:
+        print(f"⚠️ Warning: Failed to save .keras format: {str(e)}")
+    
+    try:
+        # 2. Save in .h5 format (legacy support)
+        h5_path = f"{base_path}.h5"
+        print(f"Saving model in .h5 format to {h5_path}...")
+        model.save(h5_path, save_format='h5')
+        saved_paths.append(h5_path)
+        print(f"✅ Model saved successfully to {h5_path}")
+    except Exception as e:
+        print(f"⚠️ Warning: Failed to save .h5 format: {str(e)}")
+    
+    if save_weights:
+        try:
+            # 3. Save weights separately (lightweight, can rebuild model)
+            weights_path = f"{base_path}.weights.h5"
+            print(f"Saving model weights to {weights_path}...")
+            model.save_weights(weights_path)
+            saved_paths.append(weights_path)
+            print(f"✅ Weights saved successfully to {weights_path}")
+        except Exception as e:
+            print(f"⚠️ Warning: Failed to save weights: {str(e)}")
+    
+    if not saved_paths:
+        raise Exception("Failed to save model in any format!")
+    
+    print(f"✅ Model saved successfully in {len(saved_paths)} format(s)")
+    return saved_paths
+
+
 def save_training_history(history, model, test_metrics, save_path='models/training_history.json'):
     """
     Save training history and metadata
