@@ -1274,38 +1274,97 @@ def show_predict():
                             
                             latency = time.time() - start_time
                             
+                            # Check response status and content
                             if response.status_code == 200:
-                                result = response.json()
-                                prediction = result.get('prediction', {})
-                                
-                                st.success("Prediction completed!")
-                                
-                                predicted_class = prediction.get('predicted_class', 'Unknown')
-                                confidence = prediction.get('confidence', 0)
-                                
-                                if predicted_class == 'Infected':
-                                    st.error(f"**Prediction:** {predicted_class}")
-                                else:
-                                    st.success(f"**Prediction:** {predicted_class}")
-                                
-                                st.metric("Confidence", f"{confidence:.2%}")
-                                st.progress(confidence)
-                                
-                                # Save to session state for history
-                                if 'prediction_history' not in st.session_state:
-                                    st.session_state.prediction_history = []
-                                
-                                st.session_state.prediction_history.append({
-                                    'timestamp': datetime.now(),
-                                    'image_name': uploaded_file.name,
-                                    'image': uploaded_file.name,  # Alias for compatibility
-                                    'prediction': predicted_class,
-                                    'confidence': confidence,
-                                    'latency': latency,
-                                    'success': True
-                                })
+                                # Try to parse JSON response
+                                try:
+                                    # Check if response has content
+                                    if not response.text or len(response.text.strip()) == 0:
+                                        st.error("❌ **Empty Response**: The API returned an empty response.")
+                                        st.info("The service might be starting up. Please try again in a moment.")
+                                        return
+                                    
+                                    # Try to parse as JSON
+                                    result = response.json()
+                                    
+                                    # Check if result has expected structure
+                                    if 'prediction' not in result:
+                                        st.error(f"❌ **Unexpected Response Format**: {result}")
+                                        st.info("The API response doesn't contain prediction data. Please check server logs.")
+                                        return
+                                    
+                                    prediction = result.get('prediction', {})
+                                    
+                                    st.success("Prediction completed!")
+                                    
+                                    predicted_class = prediction.get('predicted_class', 'Unknown')
+                                    confidence = prediction.get('confidence', 0)
+                                    
+                                    if predicted_class == 'Infected':
+                                        st.error(f"**Prediction:** {predicted_class}")
+                                    else:
+                                        st.success(f"**Prediction:** {predicted_class}")
+                                    
+                                    st.metric("Confidence", f"{confidence:.2%}")
+                                    st.progress(confidence)
+                                    
+                                    # Save to session state for history
+                                    if 'prediction_history' not in st.session_state:
+                                        st.session_state.prediction_history = []
+                                    
+                                    st.session_state.prediction_history.append({
+                                        'timestamp': datetime.now(),
+                                        'image_name': uploaded_file.name,
+                                        'image': uploaded_file.name,  # Alias for compatibility
+                                        'prediction': predicted_class,
+                                        'confidence': confidence,
+                                        'latency': latency,
+                                        'success': True
+                                    })
+                                    
+                                except ValueError as json_error:
+                                    # JSON parsing failed - show the actual response
+                                    st.error(f"❌ **JSON Parse Error**: Could not parse API response as JSON.")
+                                    st.warning(f"**Response Status**: {response.status_code}")
+                                    st.warning(f"**Response Content-Type**: {response.headers.get('Content-Type', 'Unknown')}")
+                                    
+                                    # Show first 500 chars of response for debugging
+                                    response_preview = response.text[:500] if response.text else "(Empty response)"
+                                    with st.expander("🔍 View Response Details"):
+                                        st.code(response_preview, language='text')
+                                    
+                                    st.info("""
+                                    **This usually means:**
+                                    - The API service is returning an HTML error page (service might be down)
+                                    - The API is still starting up
+                                    - There's a server error
+                                    
+                                    **Try:**
+                                    1. Wait 30-60 seconds and try again
+                                    2. Check API health: https://pcos-api-1fce.onrender.com/health
+                                    3. Click "Wake Up Service" button
+                                    """)
                             else:
-                                st.error(f"Prediction failed: {response.json().get('error', 'Unknown error')}")
+                                # Non-200 status code
+                                error_msg = "Unknown error"
+                                try:
+                                    if response.text:
+                                        error_data = response.json()
+                                        error_msg = error_data.get('error', f"HTTP {response.status_code}")
+                                    else:
+                                        error_msg = f"HTTP {response.status_code}: {response.reason}"
+                                except (ValueError, json.JSONDecodeError):
+                                    # Response is not JSON, show raw text
+                                    error_msg = f"HTTP {response.status_code}: {response.text[:200] if response.text else response.reason}"
+                                
+                                st.error(f"❌ **Prediction Failed**: {error_msg}")
+                                
+                                if response.status_code == 503:
+                                    st.warning("Service is temporarily unavailable. The Render service might be waking up.")
+                                elif response.status_code == 502:
+                                    st.warning("Bad Gateway - The service might be restarting.")
+                                elif response.status_code == 500:
+                                    st.warning("Internal Server Error - Check API logs for details.")
                         except requests.exceptions.Timeout:
                             st.error("⏱️ **Request Timeout**: The API service is taking too long to respond.")
                             st.warning("""
@@ -1354,31 +1413,61 @@ def show_predict():
                     latency = response.elapsed.total_seconds() if hasattr(response, 'elapsed') else 0
                     
                     if response.status_code == 200:
-                        result = response.json().get('prediction', {})
-                        predicted_class = result.get('predicted_class', 'Unknown')
-                        confidence = result.get('confidence', 0)
-                        
-                        results.append({
-                            'Image': file.name,
-                            'Prediction': predicted_class,
-                            'Confidence': f"{confidence:.2%}"
-                        })
-                        
-                        # Save to session state for history
-                        st.session_state.prediction_history.append({
-                            'timestamp': datetime.now(),
-                            'image_name': file.name,
-                            'image': file.name,
-                            'prediction': predicted_class,
-                            'confidence': confidence,
-                            'latency': latency,
-                            'success': True
-                        })
+                        try:
+                            if not response.text or len(response.text.strip()) == 0:
+                                raise ValueError("Empty response")
+                            result_data = response.json()
+                            result = result_data.get('prediction', {})
+                            predicted_class = result.get('predicted_class', 'Unknown')
+                            confidence = result.get('confidence', 0)
+                            
+                            results.append({
+                                'Image': file.name,
+                                'Prediction': predicted_class,
+                                'Confidence': f"{confidence:.2%}"
+                            })
+                            
+                            # Save to session state for history
+                            st.session_state.prediction_history.append({
+                                'timestamp': datetime.now(),
+                                'image_name': file.name,
+                                'image': file.name,
+                                'prediction': predicted_class,
+                                'confidence': confidence,
+                                'latency': latency,
+                                'success': True
+                            })
+                        except (ValueError, json.JSONDecodeError) as e:
+                            results.append({
+                                'Image': file.name,
+                                'Prediction': 'Parse Error',
+                                'Confidence': f"Could not parse response: {str(e)[:50]}"
+                            })
+                            st.session_state.prediction_history.append({
+                                'timestamp': datetime.now(),
+                                'image_name': file.name,
+                                'image': file.name,
+                                'prediction': 'Parse Error',
+                                'confidence': 0,
+                                'latency': latency,
+                                'success': False
+                            })
                     else:
+                        # Non-200 status
+                        error_msg = "Unknown error"
+                        try:
+                            if response.text:
+                                error_data = response.json()
+                                error_msg = error_data.get('error', f"HTTP {response.status_code}")
+                            else:
+                                error_msg = f"HTTP {response.status_code}"
+                        except (ValueError, json.JSONDecodeError):
+                            error_msg = f"HTTP {response.status_code}: {response.text[:50] if response.text else 'No error message'}"
+                        
                         results.append({
                             'Image': file.name,
                             'Prediction': 'Error',
-                            'Confidence': response.json().get('error', 'Unknown error')
+                            'Confidence': error_msg
                         })
                         
                         st.session_state.prediction_history.append({
