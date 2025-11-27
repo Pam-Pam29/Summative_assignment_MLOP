@@ -204,32 +204,23 @@ def load_model():
 
 # Load model at startup (Model is now ~10MB - perfect for Render!)
 # Loading at startup ensures fast first prediction and better user experience
-# NOTE: Model loading is non-blocking - service will start even if model fails to load
+# Model loads synchronously at startup - service waits for model to be ready
 print("🚀 Starting API service...")
-print("📦 Model loading will happen in background (non-blocking)...")
-
-def load_model_background():
-    """Load model in background thread to avoid blocking service startup"""
-    global model
-    try:
-        print("🚀 Loading model at startup (~10MB - optimized for Render deployment)...")
-        load_model()
-        if model is not None:
-            print("✅ Model loaded successfully at startup!")
-            print(f"   Model ready for predictions. Memory footprint: ~10MB")
-        else:
-            print("⚠️ Model not loaded - will use lazy loading as fallback")
-    except Exception as e:
-        print(f"⚠️ Error loading model at startup: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        print("   Will use lazy loading as fallback")
-
-# Start model loading in background thread (non-blocking)
-# This ensures the service starts quickly even if model loading takes time
-model_loader_thread = threading.Thread(target=load_model_background, daemon=True)
-model_loader_thread.start()
-print("✅ API service started! Model loading in background...")
+print("📦 Loading model at startup (~10MB - optimized for Render deployment)...")
+try:
+    load_model()
+    if model is not None:
+        print("✅ Model loaded successfully at startup!")
+        print(f"   Model ready for predictions. Memory footprint: ~10MB")
+        print("✅ API service started and ready!")
+    else:
+        print("⚠️ Model not loaded - service will start but predictions will fail")
+        print("⚠️ Check model files exist in models/ directory")
+except Exception as e:
+    print(f"❌ Error loading model at startup: {str(e)}")
+    import traceback
+    traceback.print_exc()
+    print("⚠️ Service will start but predictions will fail until model is loaded")
 
 
 def allowed_file(filename):
@@ -240,7 +231,7 @@ def allowed_file(filename):
 def health_check():
     """
     Health check endpoint - ALWAYS returns 200 to pass Render health checks
-    Model loading happens in background and doesn't block service startup
+    Model loads synchronously at startup, so if service is running, model should be loaded
     """
     try:
         # Check if model files exist without loading
@@ -271,19 +262,19 @@ def health_check():
             'ready': model is not None  # Indicates if ready for predictions
         }
         
-        # Add message if model not loaded
+        # Add message based on model status
         if model is None:
             if model_exists:
-                model_status['message'] = 'Model file exists but still loading in background. Will attempt lazy loading on first prediction if needed.'
-                model_status['status'] = 'loading'  # Still healthy, just loading
+                model_status['message'] = 'Model file exists but failed to load at startup. Service will attempt to reload on first prediction.'
+                model_status['status'] = 'error'  # Model should have loaded at startup
             else:
                 model_status['message'] = 'Model file not found. Service is running but predictions will fail until model is trained.'
                 model_status['status'] = 'no_model'  # Still healthy, just no model
         else:
-            model_status['message'] = 'Model loaded successfully (~10MB, optimized for Render)'
+            model_status['message'] = 'Model loaded successfully at startup (~10MB, optimized for Render)'
             model_status['status'] = 'ready'
         
-        # ALWAYS return 200 - service is healthy even if model isn't loaded yet
+        # ALWAYS return 200 - service is healthy even if model isn't loaded
         # This ensures Render health checks pass and service doesn't get marked as unhealthy
         return jsonify(model_status), 200
         
