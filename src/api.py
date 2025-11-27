@@ -211,26 +211,32 @@ def predict():
     if model is None:
         # Load model on demand (lazy loading)
         print("📦 Model not loaded yet. Loading on demand (lazy loading)...")
+        print("⏳ This may take 10-30 seconds on first request...")
+        import time
+        load_start = time.time()
         try:
             model = load_model()
+            load_time = time.time() - load_start
             if model is not None:
                 model_loaded_at = datetime.now().isoformat()
                 model_load_error = None
-                print("✅ Model loaded successfully on demand!")
+                print(f"✅ Model loaded successfully on demand! (took {load_time:.2f}s)")
             else:
                 return jsonify({
                     'error': 'Model not loaded. Predictions cannot be made.',
                     'details': model_load_error if model_load_error else 'Model file not found or failed to load.'
                 }), 500
         except Exception as e:
+            load_time = time.time() - load_start
             error_msg = f"Error loading model: {str(e)}"
-            print(f"❌ {error_msg}")
+            print(f"❌ {error_msg} (after {load_time:.2f}s)")
             model_load_error = error_msg
             import traceback
             traceback.print_exc()
             return jsonify({
                 'error': 'Failed to load model for prediction.',
-                'details': error_msg
+                'details': error_msg,
+                'load_time': f"{load_time:.2f}s"
             }), 500
 
     if 'file' not in request.files:
