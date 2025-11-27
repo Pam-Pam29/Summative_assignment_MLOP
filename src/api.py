@@ -388,10 +388,10 @@ def retrain():
     if not training_data_dir.exists():
         return jsonify({'error': 'No training data uploaded'}), 400
 
-    # Start training in background thread
-    thread = threading.Thread(target=train_model_background)
-    thread.daemon = True
+    # Start training in background thread (non-daemon so it completes even if main thread is busy)
+    thread = threading.Thread(target=train_model_background, daemon=False)
     thread.start()
+    print(f"✅ Training started in background thread (PID: {thread.ident})")
 
     return jsonify({
         'success': True,
@@ -436,7 +436,7 @@ def train_model_background():
             train_dir,
             Path('data/test'),
             img_size=(224, 224),
-            batch_size=64,
+            batch_size=16,  # Reduced for Render memory constraints
             validation_split=0.2
         )
 
