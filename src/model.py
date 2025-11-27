@@ -111,7 +111,7 @@ def train_model(model, train_generator, validation_generator,
             filepath=model_save_path,
             monitor='val_accuracy',
             save_best_only=True,
-            save_format='keras',  # Use native Keras format (no HDF5 warnings!)
+            # Format is determined by file extension (.keras = Keras format, .h5 = HDF5 format)
             verbose=verbose
         ),
         ReduceLROnPlateau(
