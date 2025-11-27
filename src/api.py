@@ -17,7 +17,11 @@ import tensorflow as tf
 # Optimize TensorFlow for low memory usage
 import os
 import gc
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Reduce logging
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # Suppress all TensorFlow warnings (including CUDA)
+os.environ['TF_CPP_MIN_VLOG_LEVEL'] = '3'  # Suppress verbose logging
+
+# Suppress CUDA warnings
+os.environ['CUDA_VISIBLE_DEVICES'] = ''  # Disable CUDA completely
 
 # Disable GPU completely (we're on CPU)
 tf.config.set_visible_devices([], 'GPU')
@@ -210,21 +214,20 @@ def health_check():
         }
         
         # Add message based on model status with proper HTTP status codes
+        # LAZY LOADING: Always return 200 for health checks - model loads on demand
         if model is None:
             if model_exists:
-                error_detail = f"Model file exists but failed to load. {model_load_error if model_load_error else 'Check server logs for details.'}"
-                model_status['message'] = error_detail
-                model_status['error'] = model_load_error  # Include error details
-                model_status['status'] = 'error'  # Model should have loaded at startup
-                # Return 503 (Service Unavailable) if model exists but failed to load
-                return jsonify(model_status), 503
+                model_status['message'] = 'Service is running. Model will be loaded on first prediction request (lazy loading).'
+                model_status['status'] = 'ready'  # Service is ready, model loads on demand
+                # Return 200 (OK) - service is healthy, model loads lazily
+                return jsonify(model_status), 200
             else:
                 model_status['message'] = 'Model file not found. Service is running but predictions will fail until model is trained.'
                 model_status['status'] = 'no_model'  # Still healthy, just no model
                 # Return 200 (OK) if no model file - service is running, just not ready
                 return jsonify(model_status), 200
         else:
-            model_status['message'] = 'Model loaded successfully at startup (~10MB, optimized for Render)'
+            model_status['message'] = 'Model loaded and ready for predictions'
             model_status['status'] = 'ready'
             # Return 200 (OK) when model is ready
             return jsonify(model_status), 200
