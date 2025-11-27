@@ -1610,21 +1610,6 @@ def show_upload():
     
     st.divider()
     
-    # Retraining Configuration
-    st.subheader("Retraining Configuration")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        epochs = st.number_input("Epochs", min_value=1, max_value=100, value=20)
-        batch_size = st.number_input("Batch Size", min_value=8, max_value=128, value=64)
-    with col2:
-        learning_rate = st.number_input("Learning Rate", min_value=1e-7, max_value=1e-2, value=1e-5, format="%e")
-        validation_split = st.slider("Validation Split", 0.1, 0.3, 0.2)
-    
-    st.info("💡 **Note**: These settings will be used when you trigger retraining. The model will use existing model as pre-trained.")
-    
-    st.divider()
-    
     # Training Progress Monitor
     st.subheader("Training Progress Monitor")
     
