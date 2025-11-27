@@ -1617,11 +1617,29 @@ def show_upload():
         status = training_status.get('status', 'idle')
         message = training_status.get('message', '')
         progress = training_status.get('progress', 0)
+        current_epoch = training_status.get('current_epoch', 0)
+        total_epochs = training_status.get('total_epochs', 0)
+        current_loss = training_status.get('current_loss')
+        current_accuracy = training_status.get('current_accuracy')
         
         if status == 'training':
-            st.warning(f"🔄 Training in progress: {message}")
+            # Show detailed progress
+            if total_epochs > 0:
+                st.info(f"📊 **Epoch {current_epoch}/{total_epochs}** - {message}")
+            else:
+                st.warning(f"🔄 Training in progress: {message}")
+            
             st.progress(progress / 100)
-            st.info("Training may take 10-30 minutes depending on dataset size.")
+            
+            # Show current metrics if available
+            if current_loss is not None and current_accuracy is not None:
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Current Loss", f"{current_loss:.4f}")
+                with col2:
+                    st.metric("Current Accuracy", f"{current_accuracy:.4f}")
+            
+            st.info("⏱️ Training may take 5-15 minutes depending on dataset size.")
         elif status == 'completed':
             st.success(f"✅ {message}")
             if 'metrics' in training_status:

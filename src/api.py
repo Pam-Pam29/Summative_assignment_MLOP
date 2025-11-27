@@ -13,6 +13,7 @@ import json
 import threading
 from werkzeug.utils import secure_filename
 import tensorflow as tf
+from tensorflow.keras.callbacks import Callback
 
 # Optimize TensorFlow for low memory usage
 import os
@@ -448,13 +449,18 @@ def train_model_background():
 
         # Train model (reduced epochs for Render free tier)
         training_status['message'] = 'Training model...'
+        
+        # Create progress callback for real-time updates
+        progress_callback = TrainingProgressCallback(total_epochs=5)  # Reduced to 5 epochs for Render
+        
         history = train_model(
             new_model,
             train_gen,
             val_gen,
-            epochs=10,  # Reduced from 20 to 10 for Render free tier (faster, less memory)
+            epochs=5,  # Reduced to 5 epochs for Render free tier (faster, prevents timeout)
             model_save_path=MODEL_PATH,
-            verbose=0
+            verbose=0,
+            progress_callback=progress_callback
         )
 
         # Evaluate on test set

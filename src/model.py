@@ -74,7 +74,7 @@ def build_model(img_height=224, img_width=224, learning_rate=1e-4):
 
 def train_model(model, train_generator, validation_generator, 
                 epochs=20, model_save_path='models/pcos_model.keras', 
-                patience=5, verbose=1):
+                patience=5, verbose=1, progress_callback=None):
     """
     Train the model with callbacks
 
@@ -122,6 +122,10 @@ def train_model(model, train_generator, validation_generator,
             verbose=verbose
         )
     ]
+    
+    # Add progress callback if provided
+    if progress_callback:
+        callbacks.append(progress_callback)
 
     # Train model
     # Note: workers and use_multiprocessing are not supported in newer TensorFlow versions
