@@ -81,7 +81,6 @@ Path('models').mkdir(parents=True, exist_ok=True)
 # Global variables
 model = None
 model_loaded_at = None
-model_loading = False  # Track if model is currently being loaded
 model_load_error = None  # Store last error message for debugging
 is_training = False
 training_status = {
