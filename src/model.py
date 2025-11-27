@@ -5,8 +5,8 @@ Handles model building, training, and saving
 
 import tensorflow as tf
 from tensorflow.keras.applications import MobileNetV2
-from tensorflow.keras.models import Sequential, load_model
-from tensorflow.keras.layers import (Dense, GlobalAveragePooling2D, Dropout,
+from tensorflow.keras.models import Sequential, Model, load_model
+from tensorflow.keras.layers import (Input, Dense, GlobalAveragePooling2D, Dropout,
                                      BatchNormalization, Activation)
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import (EarlyStopping, ModelCheckpoint,
@@ -21,59 +21,54 @@ import numpy as np
 def build_model(img_height=224, img_width=224, learning_rate=1e-4):
     """
     Build the PCOS detection model using MobileNetV2 transfer learning
-    MobileNetV2 is much lighter than ResNet50 (~3.4M params vs ~25M)
-    Perfect for deployment on resource-constrained environments
-
+    Uses Functional API with alpha=0.5 for lighter model
+    
     Args:
-        img_height: Image height
-        img_width: Image width
-        learning_rate: Learning rate for optimizer
+        img_height: Image height (default: 224)
+        img_width: Image width (default: 224)
+        learning_rate: Learning rate for optimizer (default: 1e-4)
 
     Returns:
         Compiled Keras model
     """
-    # Load pre-trained MobileNetV2 base model (much lighter than ResNet50!)
+    # Create input layer
+    inputs = Input(shape=(img_height, img_width, 3))
+    
+    # Load pre-trained MobileNetV2 base model with alpha=0.5 (lighter)
     base_model = MobileNetV2(
-        weights='imagenet',
-        include_top=False,
+        weights='imagenet', 
+        include_top=False, 
         input_shape=(img_height, img_width, 3),
-        alpha=1.0  # Width multiplier (1.0 = full width, smaller = less params)
+        alpha=0.5  # Width multiplier (0.5 = half width, lighter model)
     )
     base_model.trainable = False
-
-    # Build custom classification head with stronger regularization to prevent overfitting
-    # Reduced capacity + higher dropout + stronger L2 regularization
-    model = Sequential([
-        base_model,
-        GlobalAveragePooling2D(),
-        Dropout(0.5),  # Add dropout after pooling
-        Dense(128, kernel_regularizer=l2(0.01)),  # Increased L2 from 0.001 to 0.01
-        BatchNormalization(),
-        Activation('relu'),
-        Dropout(0.5),  # Increased from 0.3 to 0.5
-        Dense(64, kernel_regularizer=l2(0.01)),  # Reduced from 128 to 64, increased L2
-        BatchNormalization(),
-        Activation('relu'),
-        Dropout(0.4),  # Increased from 0.2 to 0.4
-        Dense(1, activation='sigmoid')
-    ])
-
+    
+    # Pass inputs through base model
+    x = base_model(inputs, training=False)
+    
+    # Add custom classification head
+    x = GlobalAveragePooling2D()(x)
+    x = Dropout(0.5)(x)
+    x = Dense(128, kernel_regularizer=l2(0.01))(x)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    x = Dropout(0.5)(x)
+    x = Dense(64, kernel_regularizer=l2(0.01))(x)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    x = Dropout(0.4)(x)
+    outputs = Dense(1, activation='sigmoid')(x)
+    
+    # Create model using Functional API
+    model = Model(inputs=inputs, outputs=outputs)
+    
     # Compile model
     model.compile(
         optimizer=Adam(learning_rate=learning_rate),
         loss='binary_crossentropy',
-        metrics=[
-            'accuracy',
-            tf.keras.metrics.Precision(name='precision'),
-            tf.keras.metrics.Recall(name='recall'),
-            tf.keras.metrics.AUC(name='auc'),
-            tf.keras.metrics.TruePositives(name='tp'),
-            tf.keras.metrics.FalsePositives(name='fp'),
-            tf.keras.metrics.TrueNegatives(name='tn'),
-            tf.keras.metrics.FalseNegatives(name='fn')
-        ]
+        metrics=['accuracy', 'precision', 'recall', 'AUC']
     )
-
+    
     return model
 
 
