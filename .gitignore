@@ -28,6 +28,7 @@ Thumbs.db
 *.md
 !README.md
 !TESTING_GUIDE.md
+!LOCUST_TESTING_GUIDE.md  # Keep Locust testing guide
 
 # Temporary files
 *.log
@@ -60,6 +61,8 @@ build/
 *.bat
 *.sh
 !run_load_test.sh  # Keep load test script
+!run_locust.sh  # Keep Locust test script
+!run_locust.bat  # Keep Locust test script (Windows)
 
 # Temporary/fix scripts
 fix_model_loading.py

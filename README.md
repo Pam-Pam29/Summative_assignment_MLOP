@@ -80,7 +80,15 @@ Summative_assignment_MLOP/
 ├── requirements.txt                  # Python dependencies
 ├── Dockerfile                        # Docker image configuration
 ├── docker-compose.yml                # Docker Compose configuration
-└── locustfile.py                     # Locust load testing script
+├── render.yaml                       # Render deployment configuration
+├── locustfile.py                     # Locust load testing script
+├── run_api.py                        # Helper script to run API
+├── start_local_api.bat/.sh           # Quick start scripts for local API
+├── run_locust.bat/.sh                # Quick start scripts for Locust
+├── test_training_local.py            # Local training test script
+├── LOCUST_TESTING_GUIDE.md           # Comprehensive Locust testing guide
+├── DEMO_SETUP.md                     # Local demo setup guide
+└── TESTING_GUIDE.md                  # General testing guide
 ```
 
 ## 🔧 Prerequisites
@@ -117,23 +125,40 @@ Run the Jupyter notebook `Notebook/Victoria_Fakunle__PCOS_Assignment_MLOPs.ipynb
 
 ## 🚀 Usage
 
-### Option 1: Run Locally
+### Option 1: Run Locally (Recommended for Demo)
 
-#### Start the API Server
+#### Quick Start Scripts
 
+**Windows:**
+```bash
+start_local_api.bat
+```
+
+**Linux/Mac:**
+```bash
+chmod +x start_local_api.sh
+./start_local_api.sh
+```
+
+#### Manual Start
+
+**Start the API Server:**
 ```bash
 python src/api.py
+# Or use the helper script:
+python run_api.py
 ```
 
 The API will be available at `http://localhost:5000`
 
-#### Start the Streamlit UI
-
+**Start the Streamlit UI:**
 ```bash
 streamlit run app.py
 ```
 
 The UI will be available at `http://localhost:8501`
+
+**Note**: For local demo, the UI will automatically connect to `http://localhost:5000`. No configuration needed!
 
 ### Option 2: Run with Docker
 
@@ -227,6 +252,21 @@ Get dataset statistics (train/test/uploaded counts).
 
 ### Using Locust
 
+**Quick Start Scripts:**
+
+**Windows:**
+```bash
+run_locust.bat --host=http://localhost:5000
+```
+
+**Linux/Mac:**
+```bash
+chmod +x run_locust.sh
+./run_locust.sh --host=http://localhost:5000
+```
+
+**Manual Setup:**
+
 1. **Start the API server** (if not already running):
 ```bash
 python src/api.py
@@ -234,19 +274,25 @@ python src/api.py
 
 2. **Run Locust**:
 ```bash
+# Web UI mode (interactive)
 locust -f locustfile.py --host=http://localhost:5000
+
+# Headless mode (automated, saves report)
+locust -f locustfile.py --host=http://localhost:5000 --headless -u 50 -r 10 -t 60s --html=locust_report.html
 ```
 
-3. **Access Locust Web UI**:
+3. **Access Locust Web UI** (if using web mode):
 Open `http://localhost:8089` in your browser
 
 4. **Configure Test**:
-- Number of users: 100
+- Number of users: 50-100 (start with 50 for local)
 - Spawn rate: 10 users/second
 - Host: http://localhost:5000
 
 5. **Run Load Test**:
 Click "Start Swarming" to begin the test
+
+**For detailed Locust testing guide, see [LOCUST_TESTING_GUIDE.md](LOCUST_TESTING_GUIDE.md)**
 
 ### Testing with Multiple Containers
 
@@ -310,14 +356,15 @@ Record latency and response times for each configuration.
    - Click "Create Web Service"
    - Copy the UI URL (e.g., `https://pcos-ui.onrender.com`)
 
-**Detailed Guide**: See [RENDER_DEPLOYMENT_GUIDE.md](RENDER_DEPLOYMENT_GUIDE.md) for step-by-step instructions.
-
 **Deployment URLs**: 
 - **API**: https://pcos-api-1fce.onrender.com
 - **UI**: https://pcos-ui.onrender.com
 - **API Health Check**: https://pcos-api-1fce.onrender.com/health
 
-**Note**: Free tier services may take 30 seconds to wake up after inactivity (cold start).
+**Note**: 
+- Free tier services may take 30 seconds to wake up after inactivity (cold start)
+- For demos, using local API (`http://localhost:5000`) is recommended for faster, more reliable performance
+- See [DEMO_SETUP.md](DEMO_SETUP.md) for local demo setup instructions
 
 ### Alternative: Other Cloud Platforms
 
@@ -379,11 +426,13 @@ The video demonstrates:
 
 ### Model Performance
 
-- **Test Accuracy**: 99.17%
-- **Test Precision**: 98.62%
-- **Test Recall**: 100.00%
-- **Test F1-Score**: 99.30%
-- **Test AUC**: 1.0000
+- **Test Accuracy**: 97.50%
+- **Test Precision**: 94.68%
+- **Test Recall**: 99.70%
+- **Test F1-Score**: 97.12%
+- **Test AUC**: 0.9984
+- **Model Architecture**: MobileNetV2 (alpha=0.5, lightweight)
+- **Model Size**: ~5-10 MB
 
 ### Evaluation Metrics
 
@@ -433,11 +482,16 @@ Results from Locust load testing:
 
 **Note**: Results from actual load tests run on Render deployment.
 
-**To run load tests:**
+**To run load tests locally (recommended for demo):**
+1. Start local API: `python src/api.py`
+2. Run Locust: `locust -f locustfile.py --host=http://localhost:5000`
+3. Open browser: http://localhost:8089
+4. Configure: 50-100 users, spawn rate 10
+5. Run for 1-2 minutes and record results
+
+**For Render deployment testing:**
 1. Run Locust: `locust -f locustfile.py --host=https://pcos-api-1fce.onrender.com`
-2. Open browser: http://localhost:8089
-3. Configure: 100 users, spawn rate 10
-4. Run for 2-3 minutes and record results
+2. Note: Render free tier has cold starts (30s delay) and rate limits
 
 ## 🎓 Features Demonstrated
 
