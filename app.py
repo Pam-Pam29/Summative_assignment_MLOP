@@ -502,7 +502,9 @@ def show_dashboard():
     
     with col4:
         if api_status:
-            health = "Healthy" if api_status.get('status') == 'healthy' else "Warning"
+            # Health is "Healthy" if status is 'healthy' or 'ready' (model loaded and ready)
+            status_value = api_status.get('status', '')
+            health = "Healthy" if status_value in ['healthy', 'ready'] else "Warning"
             st.metric("Health", health)
         else:
             st.metric("Health", "Unhealthy")
