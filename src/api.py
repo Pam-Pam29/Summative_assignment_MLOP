@@ -303,11 +303,23 @@ def health_check():
 def predict():
     """Predict endpoint for single image"""
     # Model is loaded at startup (~10MB) for fast response times
+    # If model is still loading, wait a bit for it to finish
     if model is None:
-        # Fallback: try to load if somehow not loaded
-        load_model()
+        # Check if model is currently loading
+        if model_loading:
+            # Wait up to 10 seconds for model to finish loading
+            import time
+            max_wait = 10
+            waited = 0
+            while model is None and model_loading and waited < max_wait:
+                time.sleep(0.5)
+                waited += 0.5
+            
+        # If still not loaded, try to load now
         if model is None:
-            return jsonify({'error': 'Model not loaded. Please check server logs.'}), 500
+            load_model()
+            if model is None:
+                return jsonify({'error': 'Model not loaded. Please check server logs. The model may still be loading - please try again in a few seconds.'}), 503
 
     if 'file' not in request.files:
         return jsonify({'error': 'No file provided'}), 400
