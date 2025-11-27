@@ -78,7 +78,7 @@ def build_model(img_height=224, img_width=224, learning_rate=1e-4):
 
 
 def train_model(model, train_generator, validation_generator, 
-                epochs=20, model_save_path='models/pcos_model.h5', 
+                epochs=20, model_save_path='models/pcos_model.keras', 
                 patience=5, verbose=1):
     """
     Train the model with callbacks
@@ -88,7 +88,7 @@ def train_model(model, train_generator, validation_generator,
         train_generator: Training data generator
         validation_generator: Validation data generator
         epochs: Maximum number of epochs
-        model_save_path: Path to save the best model
+        model_save_path: Path to save the best model (default: .keras format)
         patience: Early stopping patience
         verbose: Verbosity level
 
@@ -97,6 +97,12 @@ def train_model(model, train_generator, validation_generator,
     """
     # Ensure models directory exists
     Path(model_save_path).parent.mkdir(parents=True, exist_ok=True)
+    
+    # Convert .h5 to .keras if needed (for backward compatibility)
+    if model_save_path.endswith('.h5'):
+        model_save_path = model_save_path.replace('.h5', '.keras')
+        if verbose:
+            print(f"⚠️ Note: Changed save path to .keras format: {model_save_path}")
 
     # Callbacks
     callbacks = [
@@ -110,6 +116,7 @@ def train_model(model, train_generator, validation_generator,
             filepath=model_save_path,
             monitor='val_accuracy',
             save_best_only=True,
+            save_format='keras',  # Use native Keras format (no HDF5 warnings!)
             verbose=verbose
         ),
         ReduceLROnPlateau(
@@ -151,18 +158,20 @@ def save_model_properly(model, base_path='models/pcos_model', save_weights=True)
     
     try:
         # 1. Save in .keras format (newer, most compatible with TensorFlow 2.x+)
+        # This is the recommended format - no warnings!
         keras_path = f"{base_path}.keras"
         print(f"Saving model in .keras format to {keras_path}...")
-        model.save(keras_path, save_format='keras')
+        model.save(keras_path)  # No save_format needed - .keras extension is detected automatically
         saved_paths.append(keras_path)
         print(f"✅ Model saved successfully to {keras_path}")
     except Exception as e:
         print(f"⚠️ Warning: Failed to save .keras format: {str(e)}")
     
     try:
-        # 2. Save in .h5 format (legacy support)
+        # 2. Save in .h5 format (legacy support - only if needed)
+        # Note: This will show a warning, but we keep it for backward compatibility
         h5_path = f"{base_path}.h5"
-        print(f"Saving model in .h5 format to {h5_path}...")
+        print(f"Saving model in .h5 format to {h5_path} (legacy backup)...")
         model.save(h5_path, save_format='h5')
         saved_paths.append(h5_path)
         print(f"✅ Model saved successfully to {h5_path}")
