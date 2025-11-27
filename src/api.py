@@ -443,13 +443,8 @@ def retrain():
     # Note: This still uses the same worker process, but allows the endpoint to return immediately
     thread = threading.Thread(target=train_model_background, daemon=False)
     thread.start()
-<<<<<<< HEAD
     print(f"✅ Training started in background thread (PID: {thread.ident})")
     print(f"⚠️  Note: Training with BARE MINIMUM config (1 epoch, batch_size=4) for Render free tier")
-=======
-    print(f" Training started in background thread (PID: {thread.ident})")
-    print(f"  Note: Training with 3 epochs, batch_size=8 to fit within Render free tier limits")
->>>>>>> 3f8fe9133c0eb2d5ef724e58f461f535ba360817
 
     return jsonify({
         'success': True,
