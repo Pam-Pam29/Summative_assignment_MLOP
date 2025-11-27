@@ -145,7 +145,12 @@ def load_model():
                         return model
                     except Exception as e1:
                         error_msg = str(e1)
-                        print(f"  ❌ Error loading {model_path} with compile=False: {error_msg}")
+                        # Check if it's the known architecture mismatch error
+                        if "expects 1 input(s), but it received 2 input tensors" in error_msg:
+                            print(f"  ⚠️ Model file {model_path} has architecture mismatch (likely saved incorrectly)")
+                            print(f"     This is a known issue - will fall back to weights loading")
+                        else:
+                            print(f"  ❌ Error loading {model_path} with compile=False: {error_msg}")
                         import traceback
                         traceback.print_exc()
                         # Try with compile=True
@@ -164,7 +169,11 @@ def load_model():
                             return model
                         except Exception as e2:
                             error_msg = str(e2)
-                            print(f"  ❌ Error loading {model_path} with compile=True: {error_msg}")
+                            if "expects 1 input(s), but it received 2 input tensors" in error_msg:
+                                print(f"  ⚠️ Model file {model_path} has architecture mismatch")
+                                print(f"     Will fall back to weights loading (this will download MobileNetV2)")
+                            else:
+                                print(f"  ❌ Error loading {model_path} with compile=True: {error_msg}")
                             import traceback
                             traceback.print_exc()
                             continue
