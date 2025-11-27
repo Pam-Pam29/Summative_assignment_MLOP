@@ -1051,49 +1051,49 @@ def show_analytics():
         
         col1, col2 = st.columns(2)
         
-            # ROC Curve
-            with col1:
-                st.markdown("### ROC Curve (Receiver Operating Characteristic)")
-                
-                # Generate ROC curve based on actual AUC score
-                # For high AUC (>0.99), create a more realistic curve
-                fpr = np.linspace(0, 1, 100)
-                
-                if auc_score >= 0.998:
-                    # For very high AUC (like 0.9984), create a curve that stays very close to top-left
-                    # This creates a more realistic representation
-                    tpr = 1 - np.power(1 - fpr, 1 / (1 - auc_score + 0.001))
-                    # Ensure it starts at (0,0) and ends at (1,1)
-                    tpr[0] = 0
-                    tpr[-1] = 1
-                elif auc_score >= 0.99:
-                    # For high AUC, use a curve that rises quickly
-                    tpr = 1 - np.power(1 - fpr, 1 / (1 - auc_score + 0.01))
-                    tpr[0] = 0
-                    tpr[-1] = 1
-                else:
-                    # For lower AUC, use standard approximation
-                    tpr = np.power(fpr, 1 / (auc_score + 0.1))
-                
-                tpr = np.clip(tpr, 0, 1)
-                
-                fig = go.Figure()
-                fig.add_trace(go.Scatter(x=fpr, y=tpr, mode='lines', 
-                                       name=f'ROC Curve (AUC = {auc_score:.4f})',
-                                       line=dict(color='orange', width=2)))
-                fig.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode='lines', 
-                                       name='Random Classifier (AUC = 0.5)',
-                                       line=dict(color='darkblue', width=2, dash='dash')))
-                fig.update_layout(
-                    title=f'ROC Curve (AUC = {auc_score:.4f})',
-                    xaxis_title='False Positive Rate',
-                    yaxis_title='True Positive Rate',
-                    height=400,
-                    xaxis=dict(range=[0, 1]),
-                    yaxis=dict(range=[0, 1])
-                )
-                st.plotly_chart(fig, use_container_width=True)
-                st.caption(f"**AUC Score**: {auc_score:.4f} - Excellent discrimination ability")
+        # ROC Curve
+        with col1:
+            st.markdown("### ROC Curve (Receiver Operating Characteristic)")
+            
+            # Generate ROC curve based on actual AUC score
+            # For high AUC (>0.99), create a more realistic curve
+            fpr = np.linspace(0, 1, 100)
+            
+            if auc_score >= 0.998:
+                # For very high AUC (like 0.9984), create a curve that stays very close to top-left
+                # This creates a more realistic representation
+                tpr = 1 - np.power(1 - fpr, 1 / (1 - auc_score + 0.001))
+                # Ensure it starts at (0,0) and ends at (1,1)
+                tpr[0] = 0
+                tpr[-1] = 1
+            elif auc_score >= 0.99:
+                # For high AUC, use a curve that rises quickly
+                tpr = 1 - np.power(1 - fpr, 1 / (1 - auc_score + 0.01))
+                tpr[0] = 0
+                tpr[-1] = 1
+            else:
+                # For lower AUC, use standard approximation
+                tpr = np.power(fpr, 1 / (auc_score + 0.1))
+            
+            tpr = np.clip(tpr, 0, 1)
+            
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(x=fpr, y=tpr, mode='lines', 
+                                   name=f'ROC Curve (AUC = {auc_score:.4f})',
+                                   line=dict(color='orange', width=2)))
+            fig.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode='lines', 
+                                   name='Random Classifier (AUC = 0.5)',
+                                   line=dict(color='darkblue', width=2, dash='dash')))
+            fig.update_layout(
+                title=f'ROC Curve (AUC = {auc_score:.4f})',
+                xaxis_title='False Positive Rate',
+                yaxis_title='True Positive Rate',
+                height=400,
+                xaxis=dict(range=[0, 1]),
+                yaxis=dict(range=[0, 1])
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            st.caption(f"**AUC Score**: {auc_score:.4f} - Excellent discrimination ability")
         
         # Confusion Matrix
         with col2:
