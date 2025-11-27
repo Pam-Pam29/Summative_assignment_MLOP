@@ -10,6 +10,19 @@ from datetime import datetime
 import json
 import numpy as np
 import tensorflow as tf
+import gc
+
+# Optimize TensorFlow for low memory usage (same as api.py)
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # Suppress all TensorFlow warnings
+os.environ['CUDA_VISIBLE_DEVICES'] = ''  # Disable CUDA completely
+tf.config.set_visible_devices([], 'GPU')
+
+# Limit TensorFlow threads to reduce memory
+tf.config.threading.set_inter_op_parallelism_threads(1)
+tf.config.threading.set_intra_op_parallelism_threads(1)
+
+# Set TensorFlow to use less memory
+tf.config.experimental.enable_op_determinism()
 
 from src.model import build_model, train_model, save_training_history, load_saved_model
 from src.preprocessing import create_data_generators, count_images
@@ -51,7 +64,7 @@ def merge_uploaded_data(upload_dir, train_dir):
 def retrain_model(train_dir='data/train', test_dir='data/test', 
                   upload_dir='data/uploads/training',
                   model_save_path='models/pcos_model.keras',
-                  epochs=20, batch_size=64, img_size=(224, 224),
+                  epochs=20, batch_size=16, img_size=(224, 224),  # Reduced batch_size for Render
                   validation_split=0.2, seed=42):
     """
     Retrain the model with new data

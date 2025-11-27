@@ -123,13 +123,15 @@ def train_model(model, train_generator, validation_generator,
         )
     ]
 
-    # Train model
+    # Train model with memory optimizations for Render
     history = model.fit(
         train_generator,
         validation_data=validation_generator,
         epochs=epochs,
         callbacks=callbacks,
-        verbose=verbose
+        verbose=verbose,
+        workers=1,  # Reduce workers for Render memory constraints
+        use_multiprocessing=False  # Disable multiprocessing to save memory
     )
 
     return history
