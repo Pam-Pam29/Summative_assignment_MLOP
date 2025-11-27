@@ -440,9 +440,11 @@ def retrain():
         return jsonify({'error': 'No training data uploaded'}), 400
 
     # Start training in background thread (non-daemon so it completes even if main thread is busy)
+    # Note: This still uses the same worker process, but allows the endpoint to return immediately
     thread = threading.Thread(target=train_model_background, daemon=False)
     thread.start()
     print(f"✅ Training started in background thread (PID: {thread.ident})")
+    print(f"⚠️  Note: Training with 3 epochs, batch_size=8 to fit within Render free tier limits")
 
     return jsonify({
         'success': True,
