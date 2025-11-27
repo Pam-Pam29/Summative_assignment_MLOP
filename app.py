@@ -1673,9 +1673,9 @@ def show_upload():
             except Exception as e:
                 st.error(f"Error: {str(e)}")
     
-    # Auto-refresh if training
+    # Auto-refresh if training (every 2 seconds for real-time updates)
     if training_status and training_status.get('status') == 'training':
-        time.sleep(5)
+        time.sleep(2)  # Wait 2 seconds before auto-refresh for real-time progress
         st.rerun()
     
     st.divider()
