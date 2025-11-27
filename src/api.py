@@ -246,24 +246,32 @@ def health_check():
 @app.route('/predict', methods=['POST'])
 def predict():
     """Predict endpoint for single image"""
-    # Model is loaded at startup (~10MB) for fast response times
-    # If model is still loading, wait a bit for it to finish
+    # LAZY LOADING: Load model on first prediction request if not already loaded
+    global model, model_loaded_at, model_load_error
     if model is None:
-        # Check if model is currently loading
-        if model_loading:
-            # Wait up to 10 seconds for model to finish loading
-            import time
-            max_wait = 10
-            waited = 0
-            while model is None and model_loading and waited < max_wait:
-                time.sleep(0.5)
-                waited += 0.5
-            
-        # If still not loaded, try to load now
-        if model is None:
-            load_model()
-            if model is None:
-                return jsonify({'error': 'Model not loaded. Please check server logs. The model may still be loading - please try again in a few seconds.'}), 503
+        # Load model on demand (lazy loading)
+        print("📦 Model not loaded yet. Loading on demand (lazy loading)...")
+        try:
+            model = load_model()
+            if model is not None:
+                model_loaded_at = datetime.now().isoformat()
+                model_load_error = None
+                print("✅ Model loaded successfully on demand!")
+            else:
+                return jsonify({
+                    'error': 'Model not loaded. Predictions cannot be made.',
+                    'details': model_load_error if model_load_error else 'Model file not found or failed to load.'
+                }), 500
+        except Exception as e:
+            error_msg = f"Error loading model: {str(e)}"
+            print(f"❌ {error_msg}")
+            model_load_error = error_msg
+            import traceback
+            traceback.print_exc()
+            return jsonify({
+                'error': 'Failed to load model for prediction.',
+                'details': error_msg
+            }), 500
 
     if 'file' not in request.files:
         return jsonify({'error': 'No file provided'}), 400
