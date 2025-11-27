@@ -599,18 +599,10 @@ def model_info():
 @app.route('/dataset_stats', methods=['GET'])
 def dataset_stats():
     """Get dataset statistics - matches notebook split (validation_split=0.2)"""
-    # Check for persistent disk path first (Render deployment)
-    persistent_disk_path = Path('/opt/render/project/src/data')
-    if persistent_disk_path.exists():
-        # Use persistent disk if available
-        train_dir = persistent_disk_path / 'train'
-        test_dir = persistent_disk_path / 'test'
-        upload_dir = persistent_disk_path / 'uploads' / 'training'
-    else:
-        # Use local paths (development/local deployment)
-        train_dir = Path('data/train')
-        test_dir = Path('data/test')
-        upload_dir = Path(UPLOAD_FOLDER) / 'training'
+    # Use local paths (dataset is in Git for Render free tier)
+    train_dir = Path('data/train')
+    test_dir = Path('data/test')
+    upload_dir = Path(UPLOAD_FOLDER) / 'training'
     
     # Validation split used in notebook (0.2 = 20% for validation, 80% for training)
     VALIDATION_SPLIT = 0.2

@@ -9,10 +9,6 @@ services:
       - key: FLASK_ENV
         value: production
     healthCheckPath: /health
-    disk:
-      name: pcos-dataset-disk
-      mountPath: /opt/render/project/src/data
-      sizeGB: 1
 
   - type: web
     name: pcos-ui

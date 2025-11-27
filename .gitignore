@@ -35,6 +35,7 @@ Thumbs.db
 *.bak
 
 # Data uploads (keep structure, ignore content)
+# Note: data/train and data/test ARE in Git (needed for Render free tier)
 data/uploads/*
 !data/uploads/.gitkeep
 
