@@ -134,44 +134,12 @@ def load_model():
     
     return model
 
-# Load model at startup in background thread
-# This ensures service starts immediately (for health checks) while model loads
-# Model loading happens in background but starts immediately when module loads
+# LAZY LOADING: Model will be loaded on first prediction request
+# This ensures service starts immediately and health checks pass
+# Model loads only when needed (lazy loading)
 print("🚀 Starting API service...")
-print("📦 Loading model at startup in background (~10MB - optimized for Render)...")
-
-def load_model_startup():
-    """Load model in background thread - doesn't block service startup"""
-    global model, model_load_error
-    import time
-    start_time = time.time()
-    try:
-        print("📦 Background: Starting model load...")
-        model_load_error = None  # Clear previous errors
-        load_model()
-        elapsed = time.time() - start_time
-        if model is not None:
-            print(f"✅ Model loaded successfully at startup! (took {elapsed:.2f}s)")
-            print(f"   Model ready for predictions. Memory footprint: ~10MB")
-            model_load_error = None
-        else:
-            error_msg = "Model not loaded - check model files exist in models/ directory"
-            print(f"⚠️ {error_msg} (after {elapsed:.2f}s)")
-            model_load_error = error_msg
-    except Exception as e:
-        elapsed = time.time() - start_time
-        error_msg = f"Error loading model at startup: {str(e)}"
-        print(f"❌ {error_msg} (after {elapsed:.2f}s)")
-        model_load_error = error_msg
-        import traceback
-        traceback.print_exc()
-        print("⚠️ Will retry model loading on first prediction request")
-
-# Start model loading in background thread (non-daemon so it completes)
-# Service starts immediately, model loads in parallel
-model_loader_thread = threading.Thread(target=load_model_startup, daemon=False)
-model_loader_thread.start()
-print("✅ API service started! Model loading in background...")
+print("📦 Model will be loaded lazily on first prediction request (optimized for Render)...")
+print("✅ API service started! Ready for requests (model will load on demand)...")
 
 
 def allowed_file(filename):
