@@ -278,16 +278,32 @@ def load_model_with_fallback(models_dir='models', base_name='pcos_model'):
         if model_path.exists():
             try:
                 print(f"🔄 Attempting to load model from {format_name}: {model_path}...")
+                print(f"   File size: {model_path.stat().st_size / (1024*1024):.2f} MB")
+                
                 # Try with compile=False first (more compatible)
                 try:
+                    print(f"   Step 1/3: Loading model structure (compile=False)...")
+                    import time
+                    start_time = time.time()
                     model = tf.keras.models.load_model(str(model_path), compile=False)
-                    print(f"✅ Model loaded from {format_name} (compile=False)")
-                except Exception:
+                    load_time = time.time() - start_time
+                    print(f"✅ Model loaded from {format_name} (compile=False) in {load_time:.2f}s")
+                except Exception as e1:
+                    print(f"   ⚠️ Loading with compile=False failed: {str(e1)[:200]}")
                     # Try with compile=True
-                    model = tf.keras.models.load_model(str(model_path))
-                    print(f"✅ Model loaded from {format_name} (compile=True)")
+                    try:
+                        print(f"   Step 1/3: Loading model structure (compile=True)...")
+                        start_time = time.time()
+                        model = tf.keras.models.load_model(str(model_path))
+                        load_time = time.time() - start_time
+                        print(f"✅ Model loaded from {format_name} (compile=True) in {load_time:.2f}s")
+                    except Exception as e2:
+                        print(f"   ❌ Loading with compile=True also failed: {str(e2)[:200]}")
+                        raise e2
                 
                 # Recompile with standard metrics
+                print(f"   Step 2/3: Compiling model with metrics...")
+                start_time = time.time()
                 model.compile(
                     optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
                     loss='binary_crossentropy',
@@ -298,10 +314,15 @@ def load_model_with_fallback(models_dir='models', base_name='pcos_model'):
                         tf.keras.metrics.AUC(name='auc')
                     ]
                 )
-                print(f"✅ Model compiled and ready!")
+                compile_time = time.time() - start_time
+                print(f"   Step 3/3: Model compilation complete in {compile_time:.2f}s")
+                print(f"✅ Model compiled and ready! Total time: {load_time + compile_time:.2f}s")
                 return model
             except Exception as e:
-                print(f"❌ Failed to load {format_name}: {str(e)}")
+                error_msg = str(e)
+                print(f"❌ Failed to load {format_name}: {error_msg[:500]}")
+                import traceback
+                traceback.print_exc()
                 continue
     
     # Fallback: Try loading from weights (requires rebuilding model)

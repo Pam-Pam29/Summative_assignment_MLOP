@@ -139,21 +139,25 @@ print("📦 Loading model at startup in background (~10MB - optimized for Render
 def load_model_startup():
     """Load model in background thread - doesn't block service startup"""
     global model, model_load_error
+    import time
+    start_time = time.time()
     try:
         print("📦 Background: Starting model load...")
         model_load_error = None  # Clear previous errors
         load_model()
+        elapsed = time.time() - start_time
         if model is not None:
-            print("✅ Model loaded successfully at startup!")
+            print(f"✅ Model loaded successfully at startup! (took {elapsed:.2f}s)")
             print(f"   Model ready for predictions. Memory footprint: ~10MB")
             model_load_error = None
         else:
             error_msg = "Model not loaded - check model files exist in models/ directory"
-            print(f"⚠️ {error_msg}")
+            print(f"⚠️ {error_msg} (after {elapsed:.2f}s)")
             model_load_error = error_msg
     except Exception as e:
+        elapsed = time.time() - start_time
         error_msg = f"Error loading model at startup: {str(e)}"
-        print(f"❌ {error_msg}")
+        print(f"❌ {error_msg} (after {elapsed:.2f}s)")
         model_load_error = error_msg
         import traceback
         traceback.print_exc()
