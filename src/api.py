@@ -442,15 +442,17 @@ def train_model_background():
 
         # Build model (use same parameters as notebook)
         training_status['message'] = 'Building model...'
+        import gc
+        gc.collect()  # Clear memory before building model
         new_model = build_model(img_height=224, img_width=224, learning_rate=1e-4)
 
-        # Train model
+        # Train model (reduced epochs for Render free tier)
         training_status['message'] = 'Training model...'
         history = train_model(
             new_model,
             train_gen,
             val_gen,
-            epochs=20,
+            epochs=10,  # Reduced from 20 to 10 for Render free tier (faster, less memory)
             model_save_path=MODEL_PATH,
             verbose=0
         )
@@ -476,9 +478,10 @@ def train_model_background():
         model_loaded_at = datetime.now().isoformat()
         
         # Save the newly trained model in multiple formats for compatibility
-        from src.model import save_model_properly
-        saved_paths = save_model_properly(model, base_path='models/pcos_model', save_weights=True)
-        print(f"✅ Model saved successfully to: {', '.join(saved_paths)}")
+        from src.model import save_model_for_render
+        training_status['message'] = 'Saving model...'
+        saved_paths = save_model_for_render(model, base_name='pcos_model', models_dir='models')
+        print(f"✅ Model saved successfully to: {', '.join(saved_paths.values())}")
 
         training_status = {
             'status': 'completed',
