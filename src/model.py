@@ -281,24 +281,48 @@ def load_model_with_fallback(models_dir='models', base_name='pcos_model'):
                 print(f"   File size: {model_path.stat().st_size / (1024*1024):.2f} MB")
                 
                 # Try with compile=False first (more compatible)
+                # For .keras files, try with safe_mode=False to avoid hanging
                 try:
                     print(f"   Step 1/3: Loading model structure (compile=False)...")
                     import time
                     start_time = time.time()
-                    model = tf.keras.models.load_model(str(model_path), compile=False)
+                    
+                    # For .keras files, try with safe_mode=False (newer TF versions)
+                    if str(model_path).endswith('.keras'):
+                        try:
+                            model = tf.keras.models.load_model(str(model_path), compile=False, safe_mode=False)
+                        except TypeError:
+                            # Older TensorFlow versions don't have safe_mode parameter
+                            model = tf.keras.models.load_model(str(model_path), compile=False)
+                    else:
+                        model = tf.keras.models.load_model(str(model_path), compile=False)
+                    
                     load_time = time.time() - start_time
                     print(f"✅ Model loaded from {format_name} (compile=False) in {load_time:.2f}s")
                 except Exception as e1:
-                    print(f"   ⚠️ Loading with compile=False failed: {str(e1)[:200]}")
+                    error_msg = str(e1)
+                    print(f"   ⚠️ Loading with compile=False failed: {error_msg[:200]}")
                     # Try with compile=True
                     try:
-                        print(f"   Step 1/3: Loading model structure (compile=True)...")
+                        print(f"   Step 1/3: Retrying with compile=True...")
                         start_time = time.time()
-                        model = tf.keras.models.load_model(str(model_path))
+                        
+                        # For .keras files, try with safe_mode=False
+                        if str(model_path).endswith('.keras'):
+                            try:
+                                model = tf.keras.models.load_model(str(model_path), safe_mode=False)
+                            except TypeError:
+                                model = tf.keras.models.load_model(str(model_path))
+                        else:
+                            model = tf.keras.models.load_model(str(model_path))
+                        
                         load_time = time.time() - start_time
                         print(f"✅ Model loaded from {format_name} (compile=True) in {load_time:.2f}s")
                     except Exception as e2:
-                        print(f"   ❌ Loading with compile=True also failed: {str(e2)[:200]}")
+                        error_msg = str(e2)
+                        print(f"   ❌ Loading with compile=True also failed: {error_msg[:200]}")
+                        import traceback
+                        traceback.print_exc()
                         raise e2
                 
                 # Recompile with standard metrics
