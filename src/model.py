@@ -266,9 +266,11 @@ def load_model_with_fallback(models_dir='models', base_name='pcos_model'):
     models_path = Path(models_dir)
     
     # Priority order: .keras > .h5 > weights (rebuild)
+    # Handle both with and without spaces in filenames
     load_attempts = [
         (models_path / f"{base_name}.keras", "keras format"),
         (models_path / f"{base_name}.h5", "H5 format"),
+        (models_path / f"{base_name} .h5", "H5 format (with space)"),  # Handle spaces in filenames
     ]
     
     # Try loading full model files first
@@ -303,27 +305,35 @@ def load_model_with_fallback(models_dir='models', base_name='pcos_model'):
                 continue
     
     # Fallback: Try loading from weights (requires rebuilding model)
-    weights_path = models_path / f"{base_name}.weights.h5"
-    if weights_path.exists():
-        try:
-            print(f"🔄 Attempting to rebuild model from weights: {weights_path}...")
-            print("⚠️ This will download MobileNetV2 base weights (~9MB) - may take a moment...")
-            model = build_model(img_height=224, img_width=224, learning_rate=1e-4)
-            model.load_weights(str(weights_path))
-            model.compile(
-                optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
-                loss='binary_crossentropy',
-                metrics=[
-                    'accuracy',
-                    tf.keras.metrics.Precision(name='precision'),
-                    tf.keras.metrics.Recall(name='recall'),
-                    tf.keras.metrics.AUC(name='auc')
-                ]
-            )
-            print(f"✅ Model rebuilt and loaded from weights!")
-            return model
-        except Exception as e:
-            print(f"❌ Failed to rebuild from weights: {str(e)}")
+    # Handle both with and without spaces in filenames
+    weights_attempts = [
+        models_path / f"{base_name}.weights.h5",
+        models_path / f"{base_name}.weights .h5",  # Handle spaces
+        models_path / f"{base_name}_weights.h5",
+    ]
+    
+    for weights_path in weights_attempts:
+        if weights_path.exists():
+            try:
+                print(f"🔄 Attempting to rebuild model from weights: {weights_path}...")
+                print("⚠️ This will download MobileNetV2 base weights (~9MB) - may take a moment...")
+                model = build_model(img_height=224, img_width=224, learning_rate=1e-4)
+                model.load_weights(str(weights_path))
+                model.compile(
+                    optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
+                    loss='binary_crossentropy',
+                    metrics=[
+                        'accuracy',
+                        tf.keras.metrics.Precision(name='precision'),
+                        tf.keras.metrics.Recall(name='recall'),
+                        tf.keras.metrics.AUC(name='auc')
+                    ]
+                )
+                print(f"✅ Model rebuilt and loaded from weights!")
+                return model
+            except Exception as e:
+                print(f"❌ Failed to rebuild from weights {weights_path}: {str(e)}")
+                continue
     
     print(f"❌ Could not load model from any format in {models_dir}")
     return None
