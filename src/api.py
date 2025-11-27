@@ -78,6 +78,7 @@ Path('models').mkdir(parents=True, exist_ok=True)
 model = None
 model_loaded_at = None
 model_loading = False  # Track if model is currently being loaded
+model_load_error = None  # Store last error message for debugging
 is_training = False
 training_status = {
     'status': 'idle',
@@ -90,7 +91,7 @@ training_status = {
 # Load model function (called at startup for fast predictions)
 # For Render: 10MB model loads quickly and keeps service responsive
 def load_model():
-    global model, model_loaded_at, MODEL_PATH, model_loading
+    global model, model_loaded_at, MODEL_PATH, model_loading, model_load_error
     
     # If already loading, wait
     if model_loading:
@@ -148,8 +149,19 @@ def load_model():
                     
                     # Try loading with compile=False first (for compatibility)
                     try:
-                        model = tf.keras.models.load_model(model_path, compile=False)
+                        print(f"  Trying to load {model_path} with compile=False...")
+                        # For .keras files, try with safe_mode=False if it's a newer format
+                        if model_path.endswith('.keras'):
+                            try:
+                                model = tf.keras.models.load_model(model_path, compile=False, safe_mode=False)
+                            except TypeError:
+                                # Older TensorFlow versions don't have safe_mode parameter
+                                model = tf.keras.models.load_model(model_path, compile=False)
+                        else:
+                            model = tf.keras.models.load_model(model_path, compile=False)
+                        
                         # Recompile with the same metrics
+                        print(f"  Model loaded, recompiling...")
                         model.compile(
                             optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
                             loss='binary_crossentropy',
@@ -163,18 +175,31 @@ def load_model():
                         model_loaded_at = datetime.now().isoformat()
                         MODEL_PATH = model_path  # Update to the working path
                         print(f"✅ Model loaded successfully from {model_path}")
-                        return
+                        return model
                     except Exception as e1:
-                        print(f"  Error loading {model_path} with compile=False: {str(e1)[:100]}")
+                        error_msg = str(e1)
+                        print(f"  ❌ Error loading {model_path} with compile=False: {error_msg}")
+                        import traceback
+                        traceback.print_exc()
                         # Try with compile=True
                         try:
-                            model = tf.keras.models.load_model(model_path)
+                            print(f"  Trying to load {model_path} with compile=True...")
+                            if model_path.endswith('.keras'):
+                                try:
+                                    model = tf.keras.models.load_model(model_path, safe_mode=False)
+                                except TypeError:
+                                    model = tf.keras.models.load_model(model_path)
+                            else:
+                                model = tf.keras.models.load_model(model_path)
                             model_loaded_at = datetime.now().isoformat()
                             MODEL_PATH = model_path
-                            print(f"✅ Model loaded successfully from {model_path}")
-                            return
+                            print(f"✅ Model loaded successfully from {model_path} (with compile=True)")
+                            return model
                         except Exception as e2:
-                            print(f"  Error loading {model_path}: {str(e2)[:100]}")
+                            error_msg = str(e2)
+                            print(f"  ❌ Error loading {model_path} with compile=True: {error_msg}")
+                            import traceback
+                            traceback.print_exc()
                             continue
             except Exception as e:
                 print(f"  Error checking {model_path}: {str(e)[:100]}")
@@ -194,7 +219,9 @@ def load_model():
             print("\n💡 Solution: Save weights only in Colab and download them.")
             print("   See COLAB_SAVE_WEIGHTS_ONLY.md for instructions.")
     except Exception as e:
-        print(f"❌ Error loading model: {str(e)}")
+        error_msg = f"Error loading model: {str(e)}"
+        print(f"❌ {error_msg}")
+        model_load_error = error_msg
         import traceback
         traceback.print_exc()
     finally:
@@ -210,18 +237,23 @@ print("📦 Loading model at startup in background (~10MB - optimized for Render
 
 def load_model_startup():
     """Load model in background thread - doesn't block service startup"""
-    global model
+    global model, model_load_error
     try:
         print("📦 Background: Starting model load...")
+        model_load_error = None  # Clear previous errors
         load_model()
         if model is not None:
             print("✅ Model loaded successfully at startup!")
             print(f"   Model ready for predictions. Memory footprint: ~10MB")
+            model_load_error = None
         else:
-            print("⚠️ Model not loaded - will retry on first prediction")
-            print("⚠️ Check model files exist in models/ directory")
+            error_msg = "Model not loaded - check model files exist in models/ directory"
+            print(f"⚠️ {error_msg}")
+            model_load_error = error_msg
     except Exception as e:
-        print(f"❌ Error loading model at startup: {str(e)}")
+        error_msg = f"Error loading model at startup: {str(e)}"
+        print(f"❌ {error_msg}")
+        model_load_error = error_msg
         import traceback
         traceback.print_exc()
         print("⚠️ Will retry model loading on first prediction request")
@@ -275,7 +307,9 @@ def health_check():
         # Add message based on model status
         if model is None:
             if model_exists:
-                model_status['message'] = 'Model file exists but failed to load at startup. Service will attempt to reload on first prediction.'
+                error_detail = f"Model file exists but failed to load. {model_load_error if model_load_error else 'Check server logs for details.'}"
+                model_status['message'] = error_detail
+                model_status['error'] = model_load_error  # Include error details
                 model_status['status'] = 'error'  # Model should have loaded at startup
             else:
                 model_status['message'] = 'Model file not found. Service is running but predictions will fail until model is trained.'
