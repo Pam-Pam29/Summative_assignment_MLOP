@@ -65,9 +65,7 @@ def create_data_generators(train_dir, test_dir, img_size=(224, 224), batch_size=
         class_mode='binary',
         subset='training',
         shuffle=True,
-        seed=seed,
-        workers=1,  # Reduce workers for Render memory constraints
-        use_multiprocessing=False  # Disable multiprocessing to save memory
+        seed=seed
     )
 
     validation_generator = train_datagen.flow_from_directory(
@@ -77,9 +75,7 @@ def create_data_generators(train_dir, test_dir, img_size=(224, 224), batch_size=
         class_mode='binary',
         subset='validation',
         shuffle=False,
-        seed=seed,
-        workers=1,
-        use_multiprocessing=False
+        seed=seed
     )
 
     test_generator = test_datagen.flow_from_directory(
@@ -87,9 +83,7 @@ def create_data_generators(train_dir, test_dir, img_size=(224, 224), batch_size=
         target_size=img_size,
         batch_size=batch_size,
         class_mode='binary',
-        shuffle=False,
-        workers=1,
-        use_multiprocessing=False
+        shuffle=False
     )
 
     return train_generator, validation_generator, test_generator
