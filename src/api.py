@@ -89,8 +89,58 @@ training_status = {
     'progress': 0,
     'message': '',
     'started_at': None,
-    'completed_at': None
+    'completed_at': None,
+    'current_epoch': 0,
+    'total_epochs': 0,
+    'current_loss': None,
+    'current_accuracy': None
 }
+
+# Custom callback for training progress updates
+class TrainingProgressCallback(Callback):
+    """Callback to update training status in real-time"""
+    def __init__(self, total_epochs):
+        super().__init__()
+        self.total_epochs = total_epochs
+    
+    def on_train_begin(self, logs=None):
+        global training_status
+        training_status['total_epochs'] = self.total_epochs
+        training_status['current_epoch'] = 0
+        training_status['message'] = 'Training started...'
+        training_status['progress'] = 0
+        print(f"📊 Training started: {self.total_epochs} epochs")
+    
+    def on_epoch_begin(self, epoch, logs=None):
+        global training_status
+        training_status['current_epoch'] = epoch + 1
+        progress = int(((epoch + 1) / self.total_epochs) * 90)  # 90% max during training
+        training_status['progress'] = progress
+        training_status['message'] = f'Training epoch {epoch + 1}/{self.total_epochs}...'
+        print(f"📊 Epoch {epoch + 1}/{self.total_epochs} starting...")
+    
+    def on_epoch_end(self, epoch, logs=None):
+        global training_status
+        epoch_num = epoch + 1
+        progress = int((epoch_num / self.total_epochs) * 90)  # 90% max during training
+        training_status['progress'] = progress
+        training_status['current_epoch'] = epoch_num
+        
+        # Update metrics
+        if logs:
+            training_status['current_loss'] = float(logs.get('loss', 0))
+            training_status['current_accuracy'] = float(logs.get('accuracy', 0))
+            val_loss = logs.get('val_loss', 'N/A')
+            val_acc = logs.get('val_accuracy', 'N/A')
+            training_status['message'] = f'Epoch {epoch_num}/{self.total_epochs} - Loss: {logs.get("loss", 0):.4f}, Acc: {logs.get("accuracy", 0):.4f}, Val Loss: {val_loss:.4f if isinstance(val_loss, (int, float)) else "N/A"}, Val Acc: {val_acc:.4f if isinstance(val_acc, (int, float)) else "N/A"}'
+        
+        print(f"✅ Epoch {epoch_num}/{self.total_epochs} completed - Loss: {logs.get('loss', 0):.4f}, Acc: {logs.get('accuracy', 0):.4f}")
+    
+    def on_train_end(self, logs=None):
+        global training_status
+        training_status['progress'] = 90
+        training_status['message'] = 'Training completed, evaluating...'
+        print("📊 Training completed, moving to evaluation...")
 
 # Load model function (called at startup for fast predictions)
 # For Render: 10MB model loads quickly and keeps service responsive
