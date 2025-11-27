@@ -265,12 +265,13 @@ def load_model_with_fallback(models_dir='models', base_name='pcos_model'):
     """
     models_path = Path(models_dir)
     
-    # Priority order: .keras > .h5 > weights (rebuild)
+    # Priority order: .h5 > .keras > weights (rebuild)
+    # Changed to prioritize .h5 first since .keras files can hang on Render
     # Handle both with and without spaces in filenames
     load_attempts = [
-        (models_path / f"{base_name}.keras", "keras format"),
         (models_path / f"{base_name}.h5", "H5 format"),
         (models_path / f"{base_name} .h5", "H5 format (with space)"),  # Handle spaces in filenames
+        (models_path / f"{base_name}.keras", "keras format"),  # Try .keras last since it can hang
     ]
     
     # Try loading full model files first
