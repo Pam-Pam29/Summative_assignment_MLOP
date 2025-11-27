@@ -97,7 +97,7 @@ def train_model(model, train_generator, validation_generator,
     if model_save_path.endswith('.h5'):
         model_save_path = model_save_path.replace('.h5', '.keras')
         if verbose:
-            print(f"⚠️ Note: Changed save path to .keras format: {model_save_path}")
+            print(f" Note: Changed save path to .keras format: {model_save_path}")
 
     # Callbacks
     callbacks = [
@@ -162,37 +162,37 @@ def save_model_for_render(model, base_name='pcos_model', models_dir='models'):
     try:
         # 1. Save in .keras format (primary - most compatible)
         keras_path = models_path / f"{base_name}.keras"
-        print(f"💾 Saving model in .keras format to {keras_path}...")
+        print(f" Saving model in .keras format to {keras_path}...")
         model.save(str(keras_path))
         saved_formats['keras'] = str(keras_path)
-        print(f"✅ Model saved successfully to {keras_path}")
+        print(f" Model saved successfully to {keras_path}")
     except Exception as e:
-        print(f"⚠️ Warning: Failed to save .keras format: {str(e)}")
+        print(f" Warning: Failed to save .keras format: {str(e)}")
     
     try:
         # 2. Save weights separately (lightweight backup)
         weights_path = models_path / f"{base_name}.weights.h5"
-        print(f"💾 Saving model weights to {weights_path}...")
+        print(f" Saving model weights to {weights_path}...")
         model.save_weights(str(weights_path))
         saved_formats['weights'] = str(weights_path)
-        print(f"✅ Weights saved successfully to {weights_path}")
+        print(f" Weights saved successfully to {weights_path}")
     except Exception as e:
-        print(f"⚠️ Warning: Failed to save weights: {str(e)}")
+        print(f" Warning: Failed to save weights: {str(e)}")
     
     try:
         # 3. Save in .h5 format (legacy backup - may show warning but that's okay)
         h5_path = models_path / f"{base_name}.h5"
-        print(f"💾 Saving model in .h5 format to {h5_path} (backup)...")
+        print(f" Saving model in .h5 format to {h5_path} (backup)...")
         model.save(str(h5_path), save_format='h5')
         saved_formats['h5'] = str(h5_path)
-        print(f"✅ Model saved successfully to {h5_path}")
+        print(f" Model saved successfully to {h5_path}")
     except Exception as e:
-        print(f"⚠️ Warning: Failed to save .h5 format: {str(e)}")
+        print(f" Warning: Failed to save .h5 format: {str(e)}")
     
     if not saved_formats:
         raise Exception("Failed to save model in any format!")
     
-    print(f"\n✅ Model saved successfully in {len(saved_formats)} format(s) for Render deployment")
+    print(f"\n Model saved successfully in {len(saved_formats)} format(s) for Render deployment")
     return saved_formats
 
 
@@ -219,9 +219,9 @@ def save_model_properly(model, base_path='models/pcos_model', save_weights=True)
         print(f"Saving model in .keras format to {keras_path}...")
         model.save(keras_path)  # No save_format needed - .keras extension is detected automatically
         saved_paths.append(keras_path)
-        print(f"✅ Model saved successfully to {keras_path}")
+        print(f" Model saved successfully to {keras_path}")
     except Exception as e:
-        print(f"⚠️ Warning: Failed to save .keras format: {str(e)}")
+        print(f" Warning: Failed to save .keras format: {str(e)}")
     
     try:
         # 2. Save in .h5 format (legacy support - only if needed)
@@ -230,9 +230,9 @@ def save_model_properly(model, base_path='models/pcos_model', save_weights=True)
         print(f"Saving model in .h5 format to {h5_path} (legacy backup)...")
         model.save(h5_path, save_format='h5')
         saved_paths.append(h5_path)
-        print(f"✅ Model saved successfully to {h5_path}")
+        print(f" Model saved successfully to {h5_path}")
     except Exception as e:
-        print(f"⚠️ Warning: Failed to save .h5 format: {str(e)}")
+        print(f" Warning: Failed to save .h5 format: {str(e)}")
     
     if save_weights:
         try:
@@ -241,14 +241,14 @@ def save_model_properly(model, base_path='models/pcos_model', save_weights=True)
             print(f"Saving model weights to {weights_path}...")
             model.save_weights(weights_path)
             saved_paths.append(weights_path)
-            print(f"✅ Weights saved successfully to {weights_path}")
+            print(f" Weights saved successfully to {weights_path}")
         except Exception as e:
-            print(f"⚠️ Warning: Failed to save weights: {str(e)}")
+            print(f" Warning: Failed to save weights: {str(e)}")
     
     if not saved_paths:
         raise Exception("Failed to save model in any format!")
     
-    print(f"✅ Model saved successfully in {len(saved_paths)} format(s)")
+    print(f" Model saved successfully in {len(saved_paths)} format(s)")
     return saved_paths
 
 
@@ -279,7 +279,7 @@ def load_model_with_fallback(models_dir='models', base_name='pcos_model'):
     for model_path, format_name in load_attempts:
         if model_path.exists():
             try:
-                print(f"🔄 Attempting to load model from {format_name}: {model_path}...")
+                print(f" Attempting to load model from {format_name}: {model_path}...")
                 print(f"   File size: {model_path.stat().st_size / (1024*1024):.2f} MB")
                 
                 # Try with compile=False first (more compatible)
@@ -300,10 +300,10 @@ def load_model_with_fallback(models_dir='models', base_name='pcos_model'):
                         model = tf.keras.models.load_model(str(model_path), compile=False)
                     
                     load_time = time.time() - start_time
-                    print(f"✅ Model loaded from {format_name} (compile=False) in {load_time:.2f}s")
+                    print(f" Model loaded from {format_name} (compile=False) in {load_time:.2f}s")
                 except Exception as e1:
                     error_msg = str(e1)
-                    print(f"   ⚠️ Loading with compile=False failed: {error_msg[:200]}")
+                    print(f"    Loading with compile=False failed: {error_msg[:200]}")
                     # Try with compile=True
                     try:
                         print(f"   Step 1/3: Retrying with compile=True...")
@@ -319,10 +319,10 @@ def load_model_with_fallback(models_dir='models', base_name='pcos_model'):
                             model = tf.keras.models.load_model(str(model_path))
                         
                         load_time = time.time() - start_time
-                        print(f"✅ Model loaded from {format_name} (compile=True) in {load_time:.2f}s")
+                        print(f" Model loaded from {format_name} (compile=True) in {load_time:.2f}s")
                     except Exception as e2:
                         error_msg = str(e2)
-                        print(f"   ❌ Loading with compile=True also failed: {error_msg[:200]}")
+                        print(f"    Loading with compile=True also failed: {error_msg[:200]}")
                         import traceback
                         traceback.print_exc()
                         raise e2
@@ -342,11 +342,11 @@ def load_model_with_fallback(models_dir='models', base_name='pcos_model'):
                 )
                 compile_time = time.time() - start_time
                 print(f"   Step 3/3: Model compilation complete in {compile_time:.2f}s")
-                print(f"✅ Model compiled and ready! Total time: {load_time + compile_time:.2f}s")
+                print(f" Model compiled and ready! Total time: {load_time + compile_time:.2f}s")
                 return model
             except Exception as e:
                 error_msg = str(e)
-                print(f"❌ Failed to load {format_name}: {error_msg[:500]}")
+                print(f" Failed to load {format_name}: {error_msg[:500]}")
                 import traceback
                 traceback.print_exc()
                 continue
@@ -362,8 +362,8 @@ def load_model_with_fallback(models_dir='models', base_name='pcos_model'):
     for weights_path in weights_attempts:
         if weights_path.exists():
             try:
-                print(f"🔄 Attempting to rebuild model from weights: {weights_path}...")
-                print("⚠️ This will download MobileNetV2 base weights (~9MB) - may take a moment...")
+                print(f" Attempting to rebuild model from weights: {weights_path}...")
+                print(" This will download MobileNetV2 base weights (~9MB) - may take a moment...")
                 model = build_model(img_height=224, img_width=224, learning_rate=1e-4)
                 model.load_weights(str(weights_path))
                 model.compile(
@@ -376,13 +376,13 @@ def load_model_with_fallback(models_dir='models', base_name='pcos_model'):
                         tf.keras.metrics.AUC(name='auc')
                     ]
                 )
-                print(f"✅ Model rebuilt and loaded from weights!")
+                print(f" Model rebuilt and loaded from weights!")
                 return model
             except Exception as e:
-                print(f"❌ Failed to rebuild from weights {weights_path}: {str(e)}")
+                print(f" Failed to rebuild from weights {weights_path}: {str(e)}")
                 continue
     
-    print(f"❌ Could not load model from any format in {models_dir}")
+    print(f" Could not load model from any format in {models_dir}")
     return None
 
 
@@ -460,13 +460,13 @@ def load_saved_model(model_path=None):
             
             # Try loading with tf.keras (more compatible)
             model = tf.keras.models.load_model(path, compile=False)
-            print(f"✅ Model loaded from {path}")
+            print(f" Model loaded from {path}")
             return model
         except Exception as e1:
             try:
                 # Try standard load_model
                 model = load_model(path)
-                print(f"✅ Model loaded from {path}")
+                print(f" Model loaded from {path}")
                 return model
             except Exception as e2:
                 # Try with custom_objects for MobileNetV2
@@ -477,11 +477,11 @@ def load_saved_model(model_path=None):
                         custom_objects={'MobileNetV2': MobileNetV2},
                         compile=False
                     )
-                    print(f"✅ Model loaded from {path} (with MobileNetV2 custom_objects)")
+                    print(f" Model loaded from {path} (with MobileNetV2 custom_objects)")
                     return model
                 except Exception as e3:
                     continue
     
-    print("❌ Could not load model from any path")
+    print(" Could not load model from any path")
     return None
 
