@@ -94,17 +94,12 @@ training_status = {
 # Load model function (called at startup for fast predictions)
 # For Render: 10MB model loads quickly and keeps service responsive
 def load_model():
-    global model, model_loaded_at, MODEL_PATH, model_loading, model_load_error
-    
-    # If already loading, wait
-    if model_loading:
-        return None
+    global model, model_loaded_at, MODEL_PATH, model_load_error
     
     # If already loaded, return
     if model is not None:
         return model
     
-    model_loading = True
     try:
         # Clear any existing TensorFlow sessions to free memory
         tf.keras.backend.clear_session()
@@ -128,8 +123,6 @@ def load_model():
         model_load_error = error_msg
         import traceback
         traceback.print_exc()
-    finally:
-        model_loading = False
     
     return model
 
