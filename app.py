@@ -1333,7 +1333,7 @@ def show_predict():
                                     with st.expander("🔍 View Response Details"):
                                         st.code(response_preview, language='text')
                                     
-                                    st.info("""
+                                    st.info(f"""
                                     **This usually means:**
                                     - The API service is returning an HTML error page (service might be down)
                                     - The API is still starting up
@@ -1341,7 +1341,7 @@ def show_predict():
                                     
                                     **Try:**
                                     1. Wait 30-60 seconds and try again
-                                    2. Check API health: https://pcos-api-1fce.onrender.com/health
+                                    2. Check API health: {API_BASE_URL}/health
                                     3. Click "Wake Up Service" button
                                     """)
                             else:
@@ -1367,7 +1367,7 @@ def show_predict():
                                     st.warning("Internal Server Error - Check API logs for details.")
                         except requests.exceptions.Timeout:
                             st.error("⏱️ **Request Timeout**: The API service is taking too long to respond.")
-                            st.warning("""
+                            st.warning(f"""
                             **This usually happens because:**
                             - The Render service is waking up from sleep (free tier takes 30-60 seconds)
                             - The service is under heavy load
@@ -1375,7 +1375,7 @@ def show_predict():
                             **Solutions:**
                             1. Wait 30-60 seconds and try again
                             2. Click the "Retry" button below
-                            3. Check the API health: https://pcos-api-1fce.onrender.com/health
+                            3. Check the API health: {API_BASE_URL}/health
                             """)
                             if st.button("🔄 Retry Prediction", key="retry_prediction"):
                                 st.rerun()
