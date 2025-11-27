@@ -1,0 +1,13 @@
+{
+    "model_architecture": "MobileNetV2 (alpha=0.5)",
+    "total_epochs": 20,
+    "best_epoch": 10,
+    "best_validation_accuracy": 0.9718832969665527,
+    "best_validation_auc": 0.9989297389984131,
+    "final_validation_loss": 0.35200509428977966,
+    "final_training_accuracy": 0.8666136264801025,
+    "final_validation_accuracy": 0.9575597047805786,
+    "final_training_loss": 0.4923667013645172,
+    "final_validation_precision": 0.989130437374115,
+    "final_validation_recall": 0.9100000262260437
+}

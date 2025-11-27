@@ -1,22 +1,9 @@
 {
-    "test_accuracy": 0.9749681949615479,
-    "test_loss": 0.2640119194984436,
-    "test_precision": 0.9468185901641846,
-    "test_recall": 0.996999979019165,
-    "test_auc": 0.9984,
-    "test_f1": 0.9711949825286865,
-    "roc_auc": 0.9984,
-    "confusion_matrix": {
-        "true_negatives": 1248,
-        "false_positives": 109,
-        "false_negatives": 3,
-        "true_positives": 997
-    },
-    "timestamp": "2025-11-26T20:04:31.746184",
-    "model_architecture": "MobileNetV2",
-    "input_shape": [
-        224,
-        224,
-        3
-    ]
+    "test_accuracy": 0.9448451399803162,
+    "test_loss": 0.34117430448532104,
+    "test_precision": 0.8849557638168335,
+    "test_recall": 1.0,
+    "test_auc": 0.9965582489967346,
+    "roc_auc": 0.9965681650700073,
+    "timestamp": "2025-11-27T17:01:42.161343"
 }
